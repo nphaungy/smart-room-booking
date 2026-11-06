@@ -1,5 +1,7 @@
 package com.example.roombooking.ui.auth
 
+import com.example.roombooking.ui.common.appCardColors
+import androidx.compose.foundation.layout.heightIn
 import android.util.Patterns
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -124,7 +126,7 @@ private fun AuthForm(title: String, failure: Any?, content: @Composable () -> Un
                 .floatingOrbs(),
         )
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()
+            Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -132,11 +134,11 @@ private fun AuthForm(title: String, failure: Any?, content: @Composable () -> Un
             // emblem: floating glass badge with the room icon
             Box(
                 Modifier.size(84.dp).enterAnimation(0, offsetPx = -24f).bob(10f)
-                    .background(Color.White.copy(alpha = 0.22f), CircleShape).padding(8.dp)
-                    .background(Color.White, CircleShape),
+                    .background(Brand.Highlight.copy(alpha = 0.3f), CircleShape).padding(8.dp)
+                    .background(Brand.Highlight, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.MeetingRoom, null, Modifier.size(40.dp), tint = Brand.Violet)
+                Icon(Icons.Outlined.MeetingRoom, null, Modifier.size(40.dp), tint = Brand.Ink)
             }
             Spacer(Modifier.height(16.dp))
             Text("ระบบจองห้อง", Modifier.enterAnimation(1), style = MaterialTheme.typography.headlineMedium, color = Color.White)
@@ -146,11 +148,12 @@ private fun AuthForm(title: String, failure: Any?, content: @Composable () -> Un
             Card(
                 Modifier.fillMaxWidth().enterAnimation(2, offsetPx = 80f).shakeOn(failure),
                 shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                colors = appCardColors(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
             ) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                    Box(Modifier.width(48.dp).height(4.dp).background(Brush.horizontalGradient(Brand.Berry), CircleShape))
+                    Box(Modifier.width(48.dp).height(2.dp).background(MaterialTheme.colorScheme.secondary, CircleShape))
                     content()
                 }
             }
@@ -178,10 +181,10 @@ private fun Field(
 
 @Composable
 private fun SubmitButton(text: String, loading: Boolean, onClick: () -> Unit) {
-    BounceButton(onClick = onClick, enabled = !loading, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+    BounceButton(onClick = onClick, enabled = !loading, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
         // spinner and label cross-fade instead of popping
         Crossfade(targetState = loading, label = "submit") { busy ->
-            if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+            if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
             else Text(text)
         }
     }

@@ -1,5 +1,9 @@
 package com.example.roombooking.ui.admin
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.roombooking.ui.common.appCardColors
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -105,10 +109,11 @@ class AdminViewModel(private val repo: AdminRepository) : ViewModel() {
 fun AdminScreen(
     onEditRoom: (Long?) -> Unit,
     onClosures: (Long) -> Unit,
+    onCheckInQr: (Long) -> Unit,
     topActions: @Composable () -> Unit,
     vm: AdminViewModel = viewModel(factory = AdminViewModel.Factory),
 ) {
-    var tab by remember { mutableStateOf(0) }
+    var tab by rememberSaveable { mutableStateOf(0) }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(vm.message) { vm.message?.let { snackbar.showSnackbar(it); vm.message = null } }
     // reload whenever this screen is shown again (e.g. after saving a room)
@@ -134,7 +139,10 @@ fun AdminScreen(
                         items(rooms, key = { it.id }) { room ->
                             Column {
                                 RoomCard(room) { onEditRoom(room.id) }
-                                TextButton(onClick = { onClosures(room.id) }) { Text("จัดการช่วงปิดปรับปรุง") }
+                                Row {
+                                    TextButton(onClick = { onClosures(room.id) }) { Text("จัดการช่วงปิดปรับปรุง") }
+                                    TextButton(onClick = { onCheckInQr(room.id) }) { Text("QR เช็กอิน") }
+                                }
                             }
                         }
                     }
@@ -143,7 +151,7 @@ fun AdminScreen(
                 StateContent(vm.users, vm::loadUsers, "ไม่มีผู้ใช้") { users ->
                     LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(users, key = { it.id }) { u ->
-                            Card(Modifier.fillMaxWidth()) {
+                            Card(Modifier.fillMaxWidth(), colors = appCardColors()) {
                                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(u.fullName, style = MaterialTheme.typography.titleSmall)
@@ -257,7 +265,8 @@ fun RoomFormScreen(onBack: () -> Unit, vm: RoomFormViewModel = viewModel(factory
     LaunchedEffect(vm.saved) { if (vm.saved) onBack() }
     ScreenScaffold(title = if (vm.isEdit) "แก้ไขห้อง" else "เพิ่มห้อง", onBack = onBack) { padding ->
         if (vm.loading) LoadingView(Modifier.padding(padding)) else Column(
-            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
+            Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize().imePadding()
+                .verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             OutlinedTextField(vm.code, { vm.code = it }, label = { Text("รหัสห้อง เช่น SC-301") },
@@ -296,7 +305,7 @@ fun RoomFormScreen(onBack: () -> Unit, vm: RoomFormViewModel = viewModel(factory
             }
 
             vm.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Button(onClick = vm::save, enabled = !vm.saving, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+            Button(onClick = vm::save, enabled = !vm.saving, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text(if (vm.saving) "กำลังบันทึก..." else "บันทึก")
             }
         }
@@ -361,7 +370,7 @@ class ClosuresViewModel(handle: SavedStateHandle, private val repo: AdminReposit
 fun ClosuresScreen(onBack: () -> Unit, vm: ClosuresViewModel = viewModel(factory = ClosuresViewModel.Factory)) {
     ScreenScaffold(title = "ช่วงปิดปรับปรุง", onBack = onBack) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            Card(Modifier.fillMaxWidth().padding(12.dp)) {
+            Card(Modifier.fillMaxWidth().padding(12.dp), colors = appCardColors()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("เพิ่มช่วงปิดปรับปรุง", style = MaterialTheme.typography.titleSmall)
                     DateChips(vm.date, { vm.date = it })

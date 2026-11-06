@@ -8,16 +8,21 @@ import com.example.roombooking.data.remote.RoomEquipmentRequest
 import com.example.roombooking.data.remote.RoomRequest
 import com.example.roombooking.data.remote.apiCall
 import com.example.roombooking.data.remote.orThrow
+import com.example.roombooking.domain.Booking
 import com.example.roombooking.domain.BookingRules
+import com.example.roombooking.domain.BookingStatus
 import com.example.roombooking.domain.Closure
 import com.example.roombooking.domain.Dashboard
 import com.example.roombooking.domain.Equipment
+import com.example.roombooking.domain.MonthlyReport
 import com.example.roombooking.domain.Role
 import com.example.roombooking.domain.Room
+import com.example.roombooking.domain.RoomCheckInCode
 import com.example.roombooking.domain.User
 import com.example.roombooking.domain.toDomain
 import com.google.gson.Gson
 import java.time.LocalDate
+import java.time.YearMonth
 
 data class RoomForm(
     val code: String,
@@ -36,6 +41,28 @@ class AdminRepository(private val api: ApiService, private val gson: Gson) {
     // RB09
     suspend fun dashboard(from: LocalDate, to: LocalDate): Result<Dashboard> =
         apiCall(gson) { api.dashboard(from.toString(), to.toString()).toDomain() }
+
+    // Monthly report
+    suspend fun monthlyReport(month: YearMonth): Result<MonthlyReport> =
+        apiCall(gson) { api.monthlyReport(month.year, month.monthValue).toDomain() }
+
+    suspend fun monthlyReportCsv(month: YearMonth): Result<ByteArray> =
+        apiCall(gson) { api.monthlyReportCsv(month.year, month.monthValue).use { it.bytes() } }
+
+    suspend fun noShows(month: YearMonth): Result<List<Booking>> = apiCall(gson) {
+        api.allBookings(
+            status = BookingStatus.NO_SHOW.name,
+            dateFrom = month.atDay(1).toString(),
+            dateTo = month.atEndOfMonth().toString(),
+        ).map { it.toDomain() }
+    }
+
+    // QR check-in
+    suspend fun roomCheckInCode(roomId: Long): Result<RoomCheckInCode> =
+        apiCall(gson) { api.roomCheckInCode(roomId).toDomain() }
+
+    suspend fun rotateRoomCheckInCode(roomId: Long): Result<RoomCheckInCode> =
+        apiCall(gson) { api.rotateRoomCheckInCode(roomId).toDomain() }
 
     // RB10 rooms
     suspend fun rooms(): Result<List<Room>> = apiCall(gson) { api.adminRooms().map { it.toDomain() } }

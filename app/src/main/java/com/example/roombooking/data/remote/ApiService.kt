@@ -1,5 +1,6 @@
 package com.example.roombooking.data.remote
 
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -76,6 +77,29 @@ interface ApiService {
     @POST("bookings/{id}/reject")
     suspend fun rejectBooking(@Path("id") id: Long, @Body body: RejectRequest): BookingDto
 
+    @POST("bookings/{id}/check-in")
+    suspend fun checkIn(@Path("id") id: Long, @Body body: CheckInRequest): BookingDto
+
+    @POST("bookings/{id}/staff-check-in")
+    suspend fun staffCheckIn(@Path("id") id: Long, @Body body: StaffCheckInRequest): BookingDto
+
+    // Waitlist
+    @POST("waitlist")
+    suspend fun joinWaitlist(@Body body: BookingRequest): WaitlistEntryDto
+
+    @GET("waitlist/me")
+    suspend fun myWaitlist(): List<WaitlistEntryDto>
+
+    @POST("waitlist/{id}/cancel")
+    suspend fun leaveWaitlist(@Path("id") id: Long): WaitlistEntryDto
+
+    // Monthly report
+    @GET("reports/monthly")
+    suspend fun monthlyReport(@Query("year") year: Int, @Query("month") month: Int): MonthlyReportDto
+
+    @GET("reports/monthly.csv")
+    suspend fun monthlyReportCsv(@Query("year") year: Int, @Query("month") month: Int): ResponseBody
+
     // RB08
     @GET("notifications")
     suspend fun notifications(@Query("after_id") afterId: Long = 0): List<NotificationDto>
@@ -99,6 +123,12 @@ interface ApiService {
 
     @PUT("admin/rooms/{id}")
     suspend fun updateRoom(@Path("id") id: Long, @Body body: RoomRequest): RoomDto
+
+    @GET("admin/rooms/{id}/checkin-code")
+    suspend fun roomCheckInCode(@Path("id") roomId: Long): RoomCheckInCodeDto
+
+    @POST("admin/rooms/{id}/checkin-code/rotate")
+    suspend fun rotateRoomCheckInCode(@Path("id") roomId: Long): RoomCheckInCodeDto
 
     @GET("admin/rooms/{id}/closures")
     suspend fun closures(@Path("id") roomId: Long): List<ClosureDto>

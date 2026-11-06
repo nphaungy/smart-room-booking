@@ -3,10 +3,13 @@ package com.example.roombooking.domain
 import com.example.roombooking.data.remote.BookingDto
 import com.example.roombooking.data.remote.ClosureDto
 import com.example.roombooking.data.remote.DashboardDto
+import com.example.roombooking.data.remote.MonthlyReportDto
 import com.example.roombooking.data.remote.NotificationDto
+import com.example.roombooking.data.remote.RoomCheckInCodeDto
 import com.example.roombooking.data.remote.RoomDto
 import com.example.roombooking.data.remote.ScheduleDto
 import com.example.roombooking.data.remote.UserDto
+import com.example.roombooking.data.remote.WaitlistEntryDto
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
@@ -27,6 +30,9 @@ fun BookingDto.toDomain() = Booking(
     status = BookingStatus.from(status) ?: BookingStatus.PENDING, rejectReason = rejectReason,
     decidedAt = decidedAt?.let(::parseTime), createdAt = parseTime(createdAt), version = version,
     canEdit = canEdit, canCancel = canCancel, canDecide = canDecide,
+    checkedInAt = checkedInAt?.let(::parseTime), checkedInByStaff = checkinMethod == "STAFF",
+    checkinOpensAt = checkinOpensAt?.let(::parseTime), checkinDeadline = checkinDeadline?.let(::parseTime),
+    canCheckIn = canCheckIn, canStaffCheckIn = canStaffCheckIn,
     logs = logs.orEmpty().map {
         StatusLog(
             from = BookingStatus.from(it.fromStatus),
@@ -34,6 +40,27 @@ fun BookingDto.toDomain() = Booking(
             changedBy = it.changedByName, changedAt = parseTime(it.changedAt), note = it.note,
         )
     },
+)
+
+fun WaitlistEntryDto.toDomain() = WaitlistEntry(
+    id = id, roomCode = roomCode, roomName = roomName, building = building,
+    start = parseTime(startTime), end = parseTime(endTime),
+    status = WaitlistStatus.entries.firstOrNull { it.name == status } ?: WaitlistStatus.EXPIRED,
+    position = position, bookingId = bookingId,
+)
+
+fun RoomCheckInCodeDto.toDomain() = RoomCheckInCode(roomCode, roomName, checkinCode)
+
+fun MonthlyReportDto.toDomain() = MonthlyReport(
+    totalRequests = summary.totalRequests, approved = summary.approved, pending = summary.pending,
+    rejected = summary.rejected, cancelled = summary.cancelled, checkedIn = summary.checkedIn,
+    noShows = summary.noShows, attendanceRatePercent = summary.attendanceRatePercent,
+    bookedHours = summary.bookedHours, usedHours = summary.usedHours,
+    rooms = rooms.map {
+        ReportRoom(it.roomCode, it.roomName, it.approved, it.checkedIn, it.noShows, it.bookedHours, it.usedHours, it.utilizationPercent)
+    },
+    noShowUsers = noShowUsers.map { ReportNoShowUser(it.userId, it.fullName, it.email, it.noShows) },
+    waitlist = ReportWaitlist(waitlist.joined, waitlist.waiting, waitlist.promoted, waitlist.cancelled, waitlist.expired),
 )
 
 fun ClosureDto.toDomain() = Closure(id, roomId, parseTime(startTime), parseTime(endTime), reason)

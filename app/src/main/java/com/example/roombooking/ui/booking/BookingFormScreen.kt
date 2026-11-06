@@ -1,5 +1,9 @@
 package com.example.roombooking.ui.booking
 
+import androidx.compose.foundation.layout.heightIn
+import com.example.roombooking.ui.common.BottomActionBar
+import kotlinx.coroutines.delay
+import java.time.OffsetDateTime
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,6 +84,11 @@ class BookingFormViewModel(
     /** Set after a successful save; the screen then navigates to the booking detail. */
     var savedId by mutableStateOf<Long?>(null)
         private set
+    /** The chosen time is taken, so offer the queue instead. */
+    var canJoinWaitlist by mutableStateOf(false)
+        private set
+    var joinedWaitlist by mutableStateOf(false)
+        private set
 
     init { load() }
 
@@ -100,7 +109,26 @@ class BookingFormViewModel(
                 purpose = b.purpose
             }
             rooms.room(roomId).onSuccess { room = it }.onFailure { loadError = it.message }
+            if (!isEdit && start == null) suggestTime()
             loading = false
+        }
+    }
+
+    /** Opens the form on the next free time rather than on a day that may already be over. */
+    private suspend fun suggestTime() {
+        val first = BookingRules.firstBookableDate()
+        val from = date?.takeIf { !it.isBefore(first) } ?: first
+        date = from
+        for (offset in 0L until 7L) {
+            val day = from.plusDays(offset)
+            if (day.isAfter(BookingRules.today().plusDays(BookingRules.MAX_ADVANCE_DAYS))) return
+            // Offline: leave the time empty for the user to choose; the server still checks it.
+            val schedule = rooms.schedule(roomId, day).getOrNull() ?: return
+            val slot = BookingRules.suggestSlot(schedule.slots, OffsetDateTime.now()) ?: continue
+            date = day
+            start = slot.first
+            end = slot.second
+            return
         }
     }
 
@@ -112,16 +140,36 @@ class BookingFormViewModel(
         error = BookingRules.validate(date, start, end, n, r.capacity, purpose)
         if (error != null) return
         submitting = true
+        canJoinWaitlist = false
         viewModelScope.launch {
             val result = editing?.let { bookings.update(it, date!!, start!!, end!!, n!!, purpose) }
                 ?: bookings.create(r.id, date!!, start!!, end!!, n!!, purpose)
             result
                 .onSuccess { savedId = it.id }
                 .onFailure { e ->
-                    error = if ((e as? AppException)?.code == "BOOKING_CONFLICT") {
-                        "ช่วงเวลานี้ถูกจองแล้ว (อาจมีผู้ใช้อื่นจองก่อนเพียงไม่กี่วินาที) กรุณาเลือกเวลาอื่น"
+                    val conflict = (e as? AppException)?.code == "BOOKING_CONFLICT"
+                    canJoinWaitlist = conflict && !isEdit
+                    error = if (conflict) {
+                        "ช่วงเวลานี้ถูกจองแล้ว (อาจมีผู้ใช้อื่นจองก่อนเพียงไม่กี่วินาที) กรุณาเลือกเวลาอื่น" +
+                            if (isEdit) "" else " หรือเข้าคิวรอห้องนี้"
                     } else e.message
                 }
+            submitting = false
+        }
+    }
+
+    fun joinWaitlist() {
+        if (submitting) return
+        val r = room ?: return
+        val n = attendees.toIntOrNull()
+        // The form may have changed since the conflict, so it is checked again.
+        error = BookingRules.validate(date, start, end, n, r.capacity, purpose)
+        if (error != null) return
+        submitting = true
+        viewModelScope.launch {
+            bookings.joinWaitlist(r.id, date!!, start!!, end!!, n!!, purpose)
+                .onSuccess { joinedWaitlist = true }
+                .onFailure { error = it.message }
             submitting = false
         }
     }
@@ -135,17 +183,42 @@ class BookingFormViewModel(
 fun BookingFormScreen(
     onBack: () -> Unit,
     onSaved: (bookingId: Long) -> Unit,
+    onJoinedWaitlist: () -> Unit = {},
     vm: BookingFormViewModel = viewModel(factory = BookingFormViewModel.Factory),
 ) {
     LaunchedEffect(vm.savedId) { vm.savedId?.let(onSaved) }
+    LaunchedEffect(vm.joinedWaitlist) { if (vm.joinedWaitlist) onJoinedWaitlist() }
+    val scroll = rememberScrollState()
+    // The message appears at the end of the form, which may be off-screen.
+    LaunchedEffect(vm.error) {
+        if (vm.error != null) {
+            delay(300) // lets it finish expanding, so the full height is known
+            scroll.animateScrollTo(scroll.maxValue)
+        }
+    }
 
-    ScreenScaffold(title = if (vm.isEdit) "แก้ไขคำขอจอง" else "สร้างคำขอจอง", onBack = onBack) { padding ->
+    ScreenScaffold(
+        title = if (vm.isEdit) "แก้ไขคำขอจอง" else "สร้างคำขอจอง",
+        onBack = onBack,
+        bottomBar = {
+            if (!vm.loading && vm.room != null) {
+                BottomActionBar {
+                    BounceButton(onClick = vm::submit, enabled = !vm.submitting, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Crossfade(targetState = vm.submitting, label = "submit") { busy ->
+                            if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                            else Text(if (vm.isEdit) "บันทึกการแก้ไข" else "ส่งคำขอจอง")
+                        }
+                    }
+                }
+            }
+        },
+    ) { padding ->
         val room = vm.room
         when {
             vm.loading -> LoadingView(Modifier.padding(padding))
             room == null -> ErrorView(vm.loadError ?: "ไม่พบห้อง", vm::load, Modifier.padding(padding))
             else -> Column(
-                Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
+                Modifier.padding(padding).fillMaxSize().verticalScroll(scroll).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
@@ -175,14 +248,17 @@ fun BookingFormScreen(
                 )
 
                 AnimatedVisibility(vm.error != null) { Text(vm.error.orEmpty(), color = MaterialTheme.colorScheme.error) }
-                Text("คำขอจะอยู่ในสถานะ \"รออนุมัติ\" จนกว่าเจ้าหน้าที่จะพิจารณา",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                BounceButton(onClick = vm::submit, enabled = !vm.submitting, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                    Crossfade(targetState = vm.submitting, label = "submit") { busy ->
-                        if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        else Text(if (vm.isEdit) "บันทึกการแก้ไข" else "ส่งคำขอจอง")
+                AnimatedVisibility(vm.canJoinWaitlist) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedButton(onClick = vm::joinWaitlist, enabled = !vm.submitting, modifier = Modifier.fillMaxWidth()) {
+                            Text("เข้าคิวรอห้องนี้")
+                        }
+                        Text("เมื่อห้องว่าง ระบบจะส่งคำขอจองให้โดยอัตโนมัติและแจ้งเตือนคุณ",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+                Text("คำขอจะอยู่ในสถานะ \"รออนุมัติ\" จนกว่าเจ้าหน้าที่จะพิจารณา",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

@@ -1,7 +1,12 @@
 package com.example.roombooking.ui.booking
 
+import com.example.roombooking.ui.common.appCardColors
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import com.example.roombooking.domain.isCheckInOpen
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,6 +59,7 @@ import com.example.roombooking.ui.common.StatusChip
 import com.example.roombooking.ui.common.UiState
 import com.example.roombooking.ui.common.appViewModelFactory
 import com.example.roombooking.ui.common.statusColor
+import com.example.roombooking.ui.theme.StatusColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -102,6 +110,7 @@ class MyBookingsViewModel(private val repo: BookingRepository) : ViewModel() {
 @Composable
 fun MyBookingsScreen(
     onOpen: (Long) -> Unit,
+    onOpenWaitlist: () -> Unit,
     topActions: @Composable () -> Unit,
     vm: MyBookingsViewModel = viewModel(factory = MyBookingsViewModel.Factory),
 ) {
@@ -118,7 +127,7 @@ fun MyBookingsScreen(
             val selectedIndex = tabs.indexOf(vm.selectedTab)
             val primary = MaterialTheme.colorScheme.primary
             val indicator by animateColorAsState(
-                vm.selectedTab?.let(::statusColor) ?: primary, tween(Motion.MEDIUM), label = "tabIndicator",
+                vm.selectedTab?.let { statusColor(it) } ?: primary, tween(Motion.MEDIUM), label = "tabIndicator",
             )
             ScrollableTabRow(
                 selectedTabIndex = selectedIndex,
@@ -130,9 +139,17 @@ fun MyBookingsScreen(
                 tabs.forEach { s ->
                     // each tab takes the colour of the status it filters by
                     Tab(selected = vm.selectedTab == s, onClick = { vm.selectTab(s) },
-                        selectedContentColor = s?.let(::statusColor) ?: primary,
+                        selectedContentColor = s?.let { statusColor(it) } ?: primary,
                         text = { Text(s?.thai ?: "ทั้งหมด") })
                 }
+            }
+            Row(
+                Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenWaitlist).padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Filled.HourglassTop, null, tint = primary)
+                Text("คิวรอห้องของฉัน", Modifier.weight(1f).padding(start = 12.dp), color = primary, fontWeight = FontWeight.SemiBold)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = primary)
             }
             vm.refreshError?.takeIf { state is UiState.Success }?.let {
                 Text("แสดงข้อมูลที่บันทึกไว้ในเครื่อง ($it)", Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -162,12 +179,13 @@ fun BookingCard(b: Booking, showBooker: Boolean, modifier: Modifier = Modifier, 
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().pressScale(source),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 6.dp),
+        colors = appCardColors(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp, pressedElevation = 3.dp),
         interactionSource = source,
     ) {
         Column(
             Modifier
-                // left strip in the status colour: pending amber, approved green, rejected red, cancelled grey
+                // left strip in the shade of the status
                 .drawBehind { drawRect(strip, size = Size(5.dp.toPx(), size.height)) }
                 .padding(start = 21.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -179,7 +197,11 @@ fun BookingCard(b: Booking, showBooker: Boolean, modifier: Modifier = Modifier, 
             }
             Text(Fmt.bookingWhen(b.start, b.end))
             if (showBooker) Text("ผู้จอง: ${b.bookerName} · ${b.attendees} คน", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(b.purpose, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(b.purpose, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            when {
+                b.checkedInAt != null -> Text("เช็กอินแล้ว", color = StatusColors.free, fontWeight = FontWeight.SemiBold)
+                b.isCheckInOpen() -> Text("แตะเพื่อเช็กอิน", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }

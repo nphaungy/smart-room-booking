@@ -15,85 +15,101 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.roombooking.R
 
-/** Vivid palette: indigo as the main colour, with violet, pink, amber and teal as accents. */
+/**
+ * Deep emerald with champagne gold on ivory. These colours stay the same in light and dark mode,
+ * because the top bar and hero cards are emerald in both; anything on the page uses the colour scheme.
+ */
 object Brand {
-    val Indigo = Color(0xFF4338CA)
-    val IndigoDark = Color(0xFF1E1B4B)
-    val IndigoLight = Color(0xFFE0E7FF)
-    val Violet = Color(0xFF7C3AED)
-    val Pink = Color(0xFFBE185D)
-    val Coral = Color(0xFFC2410C)
-    val Amber = Color(0xFFF59E0B)
-    val AmberLight = Color(0xFFFEF3C7)
-    val Teal = Color(0xFF0F766E)
-    val Sky = Color(0xFF0369A1)
+    val Ink = Color(0xFF0B3D2E)
 
-    /** Light text for labels on top of the gradients below. */
-    val Highlight = Color(0xFFFDE68A)
+    /** Champagne for small labels and accents on top of the emerald areas. */
+    val Highlight = Color(0xFFE6CF97)
 
-    // Every gradient is dark enough to carry white text.
-    val Hero = listOf(Indigo, Violet, Pink)
-    val Grape = listOf(Indigo, Violet)
-    val Berry = listOf(Violet, Pink)
-    val Sunset = listOf(Coral, Pink)
-    val Ocean = listOf(Sky, Teal)
-}
+    /** Emerald with a soft sheen across the middle. */
+    val Hero = listOf(Color(0xFF0B3D2E), Color(0xFF14573F), Color(0xFF0B3D2E))
 
-/** Each room type has its own colours, so the list can be scanned by colour. */
-fun typeGradient(typeName: String): List<Color> = when {
-    "ประชุม" in typeName -> Brand.Berry
-    "คอมพิวเตอร์" in typeName -> Brand.Ocean
-    "เรียน" in typeName -> Brand.Sunset
-    else -> Brand.Grape
+    /** Light enough to stay visible on the dark page, and still carries white text. */
+    val Emerald = listOf(Color(0xFF0F4C3A), Color(0xFF1B6B52))
 }
 
 private val LightColors = lightColorScheme(
-    primary = Brand.Indigo,
+    primary = Color(0xFF0F4C3A),
     onPrimary = Color.White,
-    primaryContainer = Brand.IndigoLight,
-    onPrimaryContainer = Brand.IndigoDark,
-    secondary = Brand.Amber,
-    onSecondary = Color(0xFF3B2600),
-    secondaryContainer = Brand.AmberLight,
-    onSecondaryContainer = Color(0xFF452F00),
-    tertiary = Brand.Teal,
-    background = Color(0xFFF5F6FF),
-    onBackground = Color(0xFF1B1B2F),
-    surface = Color(0xFFF5F6FF),
-    onSurface = Color(0xFF1B1B2F),
-    surfaceVariant = Color(0xFFE8E9F8),
-    onSurfaceVariant = Color(0xFF4B4F6B),
-    outline = Color(0xFFB4B7D0),
-    outlineVariant = Color(0xFFDDDFF0),
-    // cards, menus and the bottom bar sit on white
+    primaryContainer = Color(0xFFE3EDE6),
+    onPrimaryContainer = Color(0xFF0B3D2E),
+    inversePrimary = Color(0xFFD9BE7C),
+    secondary = Color(0xFF8A6D2F),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF3E9D2),
+    onSecondaryContainer = Color(0xFF4A3A12),
+    tertiary = Color(0xFF6B5B3E),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFF3E9D2),
+    onTertiaryContainer = Color(0xFF4A3A12),
+    background = Color(0xFFFBF8F1),
+    onBackground = Color(0xFF1F2A25),
+    surface = Color(0xFFFBF8F1),
+    onSurface = Color(0xFF1F2A25),
+    surfaceVariant = Color(0xFFEFE9DC),
+    onSurfaceVariant = Color(0xFF5A5F54),
+    surfaceTint = Color(0xFF0F4C3A),
+    inverseSurface = Color(0xFF1F2A25),
+    inverseOnSurface = Color(0xFFF7F3E8),
+    error = Color(0xFF9B1C1C),
+    onError = Color.White,
+    errorContainer = Color(0xFFF7E4E4),
+    onErrorContainer = Color(0xFF5F1111),
+    outline = Color(0xFF85806F), // at least 3:1 on every light surface, so the edge of a field can be seen
+    outlineVariant = Color(0xFFE4DECF),
+    surfaceBright = Color(0xFFFBF8F1),
+    surfaceDim = Color(0xFFE9E3D5),
+    // Each level is a step deeper into the ivory, so depth comes from tone rather than shadow.
     surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color.White,
-    surfaceContainer = Color.White,
-    surfaceContainerHigh = Color.White,
-    surfaceContainerHighest = Color.White,
+    surfaceContainerLow = Color(0xFFFDFBF6),
+    surfaceContainer = Color(0xFFF7F3EA),
+    surfaceContainerHigh = Color(0xFFF2EDE2),
+    surfaceContainerHighest = Color(0xFFECE6D8),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFC7D2FE),
-    onPrimary = Brand.IndigoDark,
-    primaryContainer = Color(0xFF3730A3),
-    onPrimaryContainer = Brand.IndigoLight,
-    secondary = Color(0xFFFBBF24),
-    onSecondary = Color(0xFF3B2600),
-    secondaryContainer = Color(0xFF78500A),
-    onSecondaryContainer = Brand.AmberLight,
-    tertiary = Color(0xFF5EEAD4),
-    background = Color(0xFF0F0F23),
-    surface = Color(0xFF0F0F23),
-    surfaceVariant = Color(0xFF2A2A4A),
-    surfaceContainerLowest = Color(0xFF16162E),
-    surfaceContainerLow = Color(0xFF1A1A36),
-    surfaceContainer = Color(0xFF1E1E3D),
-    surfaceContainerHigh = Color(0xFF232345),
-    surfaceContainerHighest = Color(0xFF28284D),
+    primary = Color(0xFFD9BE7C),
+    onPrimary = Color(0xFF2A2008),
+    primaryContainer = Color(0xFF1F4A3A),
+    onPrimaryContainer = Color(0xFFF3E9D2),
+    inversePrimary = Color(0xFF0F4C3A),
+    secondary = Color(0xFFD9BE7C),
+    onSecondary = Color(0xFF2A2008),
+    secondaryContainer = Color(0xFF4A3B16),
+    onSecondaryContainer = Color(0xFFF3E9D2),
+    tertiary = Color(0xFFC9B98F),
+    onTertiary = Color(0xFF2A2008),
+    tertiaryContainer = Color(0xFF4A3B16),
+    onTertiaryContainer = Color(0xFFF3E9D2),
+    background = Color(0xFF0B1F19),
+    onBackground = Color(0xFFEFE9DC),
+    surface = Color(0xFF0B1F19),
+    onSurface = Color(0xFFEFE9DC),
+    surfaceVariant = Color(0xFF1D3A30),
+    onSurfaceVariant = Color(0xFFB8B5A5),
+    surfaceTint = Color(0xFFD9BE7C),
+    inverseSurface = Color(0xFFEFE9DC),
+    inverseOnSurface = Color(0xFF1F2A25),
+    error = Color(0xFFE8A0A0),
+    onError = Color(0xFF3A0A0A),
+    errorContainer = Color(0xFF4A1616),
+    onErrorContainer = Color(0xFFF5D5D5),
+    outline = Color(0xFF8A8F80),
+    outlineVariant = Color(0xFF2B463B),
+    surfaceBright = Color(0xFF24443A),
+    surfaceDim = Color(0xFF0B1F19),
+    surfaceContainerLowest = Color(0xFF11291F),
+    surfaceContainerLow = Color(0xFF132C23),
+    surfaceContainer = Color(0xFF153027),
+    surfaceContainerHigh = Color(0xFF183429),
+    surfaceContainerHighest = Color(0xFF1B382D),
 )
 
-/** Headings: modern and bold, matches the vivid colours. Bundled so it looks the same on every device. */
+/** Headings: lighter weights read as more refined than bold. Bundled so it looks the same on every device. */
 private val Prompt = FontFamily(
     Font(R.font.prompt_medium, FontWeight.Medium),
     Font(R.font.prompt_semibold, FontWeight.SemiBold),
@@ -113,16 +129,16 @@ private val AppTypography = Typography().let { t ->
         displayLarge = t.displayLarge.copy(fontFamily = Prompt),
         displayMedium = t.displayMedium.copy(fontFamily = Prompt),
         displaySmall = t.displaySmall.copy(fontFamily = Prompt),
-        headlineLarge = t.headlineLarge.copy(fontFamily = Prompt, fontWeight = FontWeight.Bold),
-        headlineMedium = t.headlineMedium.copy(fontFamily = Prompt, fontWeight = FontWeight.Bold),
-        headlineSmall = t.headlineSmall.copy(fontFamily = Prompt, fontWeight = FontWeight.Bold),
-        titleLarge = t.titleLarge.copy(fontFamily = Prompt, fontWeight = FontWeight.Bold),
-        titleMedium = t.titleMedium.copy(fontFamily = Prompt, fontWeight = FontWeight.SemiBold),
+        headlineLarge = t.headlineLarge.copy(fontFamily = Prompt, fontWeight = FontWeight.SemiBold),
+        headlineMedium = t.headlineMedium.copy(fontFamily = Prompt, fontWeight = FontWeight.SemiBold),
+        headlineSmall = t.headlineSmall.copy(fontFamily = Prompt, fontWeight = FontWeight.SemiBold),
+        titleLarge = t.titleLarge.copy(fontFamily = Prompt, fontWeight = FontWeight.SemiBold),
+        titleMedium = t.titleMedium.copy(fontFamily = Prompt, fontWeight = FontWeight.Medium),
         titleSmall = t.titleSmall.copy(fontFamily = Prompt, fontWeight = FontWeight.Medium),
         bodyLarge = t.bodyLarge.copy(fontFamily = Sarabun),
         bodyMedium = t.bodyMedium.copy(fontFamily = Sarabun),
         bodySmall = t.bodySmall.copy(fontFamily = Sarabun),
-        labelLarge = t.labelLarge.copy(fontFamily = Prompt, fontWeight = FontWeight.SemiBold),
+        labelLarge = t.labelLarge.copy(fontFamily = Prompt, fontWeight = FontWeight.Medium),
         labelMedium = t.labelMedium.copy(fontFamily = Sarabun),
         labelSmall = t.labelSmall.copy(fontFamily = Sarabun),
     )
@@ -133,16 +149,23 @@ private val AppShapes = Shapes(
     small = RoundedCornerShape(8.dp),
     medium = RoundedCornerShape(12.dp),
     large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
-/** Status colors used by chips and the room calendar (same meaning in light and dark). */
+/**
+ * Muted, jewel-toned status colours. They differ by mode because text must stay readable on both
+ * backgrounds; the words on each chip and row still carry the meaning.
+ */
 object StatusColors {
-    val free = Color(0xFF2E8B57)
-    val pending = Color(0xFFB86E00)
-    val approved = Color(0xFFB83A33)
-    val rejected = Color(0xFF7A7A7A)
-    val cancelled = Color(0xFF9E9E9E)
-    val closure = Color(0xFF5C6B7A)
+    @Composable
+    private fun shade(light: Long, dark: Long) = Color(if (isSystemInDarkTheme()) dark else light)
+
+    val free: Color @Composable get() = shade(0xFF0F6B4F, 0xFF8FD3B6)
+    val pending: Color @Composable get() = shade(0xFF8A5A00, 0xFFE3BE6E)
+    val rejected: Color @Composable get() = shade(0xFF8E2A2A, 0xFFE59A9A)
+    val cancelled: Color @Composable get() = shade(0xFF6B6A60, 0xFFB5B3A4)
+    val noShow: Color @Composable get() = shade(0xFFA3461A, 0xFFEBA27F)
+    val closure: Color @Composable get() = shade(0xFFD9D3C3, 0xFF3D4F47)
 }
 
 @Composable

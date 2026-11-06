@@ -1,5 +1,19 @@
 package com.example.roombooking.ui.rooms
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.roombooking.ui.common.appCardColors
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import com.example.roombooking.domain.isCheckInOpen
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import com.example.roombooking.ui.common.BottomActionBar
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -92,7 +106,6 @@ import com.example.roombooking.ui.common.appViewModelFactory
 import com.example.roombooking.ui.common.pressScale
 import com.example.roombooking.ui.common.toListState
 import com.example.roombooking.ui.theme.Brand
-import com.example.roombooking.ui.theme.typeGradient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -103,6 +116,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
+
+data class NextBooking(val booking: Booking, val canCheckIn: Boolean)
 
 class RoomListViewModel(
     private val repo: RoomRepository,
@@ -133,13 +148,24 @@ class RoomListViewModel(
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState.Loading)
 
-    /** The user's next upcoming (pending or approved) booking, for the greeting card. */
-    val nextBooking: StateFlow<Booking?> = bookings.myBookings
-        .map { list ->
-            val now = OffsetDateTime.now()
-            list.filter { it.status.isActive && it.end.isAfter(now) }.minByOrNull { it.start }
+    /** Re-evaluates the greeting card as time passes, so check-in appears while the screen stays open. */
+    private val clock = flow {
+        while (true) {
+            emit(Unit)
+            delay(30_000)
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
+
+    /** The booking to check in to now, otherwise the next upcoming one, for the greeting card. */
+    val nextBooking: StateFlow<NextBooking?> = combine(bookings.myBookings, clock) { list, _ ->
+        val now = OffsetDateTime.now()
+        val open = list.filter { it.isCheckInOpen(now) }.minByOrNull { it.start }
+        when {
+            open != null -> NextBooking(open, canCheckIn = true)
+            else -> list.filter { it.status.isActive && it.end.isAfter(now) }.minByOrNull { it.start }
+                ?.let { NextBooking(it, canCheckIn = false) }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val isSearching: Boolean get() = searchResult.value != null
 
@@ -200,8 +226,11 @@ fun RoomListScreen(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val next by vm.nextBooking.collectAsStateWithLifecycle()
-    var showFilter by remember { mutableStateOf(false) }
+    var showFilter by rememberSaveable { mutableStateOf(false) }
     val seen = remember { mutableSetOf<Any>() }
+    val listState = rememberLazyListState()
+    // Brings every filter on screen when the panel opens; index 1 is the panel.
+    LaunchedEffect(showFilter) { if (showFilter) listState.animateScrollToItem(1) }
 
     ScreenScaffold(
         title = "ระบบจองห้อง",
@@ -210,9 +239,27 @@ fun RoomListScreen(
             IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, "รีเฟรช") }
             topActions()
         },
+        bottomBar = {
+            if (showFilter) {
+                BottomActionBar {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BounceButton(
+                            onClick = {
+                                vm.search()
+                                // Results are below the panel, so it closes to reveal them.
+                                if (vm.filterError == null) showFilter = false
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("ค้นหาห้องว่าง") }
+                        OutlinedButton(onClick = vm::clear, modifier = Modifier.weight(1f)) { Text("ล้างตัวกรอง") }
+                    }
+                }
+            }
+        },
     ) { padding ->
         LazyColumn(
             Modifier.padding(padding).fillMaxSize(),
+            state = listState,
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -228,7 +275,8 @@ fun RoomListScreen(
 
             item {
                 SectionTitle(if (vm.isSearching) "ห้องที่ว่างตามเงื่อนไข" else "ห้องทั้งหมด",
-                    (state as? UiState.Success)?.data?.size)
+                    (state as? UiState.Success)?.data?.size,
+                    onClear = if (vm.isSearching) vm::clear else null)
             }
 
             when (val s = state) {
@@ -247,9 +295,10 @@ fun RoomListScreen(
 }
 
 @Composable
-private fun SectionTitle(text: String, count: Int?) {
+private fun SectionTitle(text: String, count: Int?, onClear: (() -> Unit)?) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
         GradientTitle(text, Modifier.weight(1f))
+        if (onClear != null) TextButton(onClick = onClear) { Text("ล้าง") }
         if (count != null) {
             Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
                 Text(
@@ -264,7 +313,8 @@ private fun SectionTitle(text: String, count: Int?) {
 
 /** Animated gradient card at the top of the home screen: greeting + the user's next booking. */
 @Composable
-private fun GreetingCard(name: String, next: Booking?, onOpenBooking: (Long) -> Unit) {
+private fun GreetingCard(name: String, upcoming: NextBooking?, onOpenBooking: (Long) -> Unit) {
+    val next = upcoming?.booking
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -290,7 +340,7 @@ private fun GreetingCard(name: String, next: Booking?, onOpenBooking: (Long) -> 
                     Box(
                         Modifier.size(40.dp).popIn(200).background(Brand.Highlight, CircleShape),
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Outlined.Event, null, tint = Brand.Indigo) }
+                    ) { Icon(Icons.Outlined.Event, null, tint = Brand.Ink) }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         if (next == null) {
@@ -306,6 +356,15 @@ private fun GreetingCard(name: String, next: Booking?, onOpenBooking: (Long) -> 
                     if (next != null) StatusChip(next.status, onGradient = true)
                 }
             }
+            if (next != null && upcoming.canCheckIn) {
+                Spacer(Modifier.height(12.dp))
+                // Gold stands out on the emerald card, because missing this is recorded as a no-show.
+                Button(
+                    onClick = { onOpenBooking(next.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand.Highlight, contentColor = Brand.Ink),
+                ) { Text("เช็กอินเลย" + (next.checkinDeadline?.let { " · ภายใน ${Fmt.time(it)} น." } ?: "")) }
+            }
         }
     }
 }
@@ -318,12 +377,15 @@ private fun SearchPanel(vm: RoomListViewModel, expanded: Boolean, onToggle: () -
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "searchArrow",
     )
-    Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+    Card(Modifier.fillMaxWidth(), colors = appCardColors(), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
         Row(
-            Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(16.dp),
+            Modifier.fillMaxWidth()
+                .clickable(role = Role.Button, onClickLabel = if (expanded) "ซ่อนตัวกรอง" else "แสดงตัวกรอง", onClick = onToggle)
+                .semantics { stateDescription = if (expanded) "เปิดอยู่" else "ปิดอยู่" }
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            GradientIcon(Icons.Outlined.Search, Brand.Ocean, size = 36.dp)
+            GradientIcon(Icons.Outlined.Search, Brand.Emerald, size = 36.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("ค้นหาห้องว่าง", style = MaterialTheme.typography.titleMedium)
@@ -355,10 +417,6 @@ private fun SearchPanel(vm: RoomListViewModel, expanded: Boolean, onToggle: () -
                     label = { Text("ชื่อห้อง / รหัส / อาคาร") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
                 vm.filterError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BounceButton(onClick = vm::search, modifier = Modifier.weight(1f)) { Text("ค้นหาห้องว่าง") }
-                    OutlinedButton(onClick = vm::clear, modifier = Modifier.weight(1f)) { Text("ล้างตัวกรอง") }
-                }
             }
         }
     }
@@ -374,17 +432,18 @@ private fun typeIcon(typeName: String): ImageVector = when {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RoomCard(room: Room, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val accent = remember(room.typeName) { typeGradient(room.typeName) }
+    val accent = Brand.Emerald
     val source = remember { MutableInteractionSource() }
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().pressScale(source),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 6.dp),
+        colors = appCardColors(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp, pressedElevation = 3.dp),
         interactionSource = source,
     ) {
         Column(
             Modifier
-                // strip down the left edge in the colours of the room type
+                // thin strip down the left edge
                 .drawBehind { drawRect(Brush.verticalGradient(accent), size = Size(5.dp.toPx(), size.height)) }
                 .padding(start = 21.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -84,7 +84,7 @@ class ReminderScheduler(private val context: Context) {
                         workDataOf(
                             ReminderWorker.KEY_BOOKING_ID to b.id,
                             ReminderWorker.KEY_TITLE to "อีก $REMIND_BEFORE_MINUTES นาทีถึงเวลาใช้ห้อง ${b.roomCode}",
-                            ReminderWorker.KEY_TEXT to "${b.roomName} เริ่ม $start น. — ${b.purpose}",
+                            ReminderWorker.KEY_TEXT to "${b.roomName} เริ่ม $start น. อย่าลืมสแกน QR เช็กอินหน้าห้อง",
                         ),
                     )
                     .build()

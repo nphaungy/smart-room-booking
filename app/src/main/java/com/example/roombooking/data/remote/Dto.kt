@@ -157,6 +157,13 @@ data class BookingDto(
     @SerializedName("can_edit") val canEdit: Boolean,
     @SerializedName("can_cancel") val canCancel: Boolean,
     @SerializedName("can_decide") val canDecide: Boolean,
+    // Nullable or false when absent, so bookings cached before check-in existed still load.
+    @SerializedName("checked_in_at") val checkedInAt: String?,
+    @SerializedName("checkin_method") val checkinMethod: String?,
+    @SerializedName("checkin_opens_at") val checkinOpensAt: String?,
+    @SerializedName("checkin_deadline") val checkinDeadline: String?,
+    @SerializedName("can_check_in") val canCheckIn: Boolean,
+    @SerializedName("can_staff_check_in") val canStaffCheckIn: Boolean,
     val logs: List<StatusLogDto>?, // only present on GET /bookings/{id}
 )
 
@@ -193,6 +200,71 @@ data class DashboardDto(
     @SerializedName("approval_rate_percent") val approvalRatePercent: Double?,
     val rooms: List<RoomUsageDto>,
     @SerializedName("by_hour") val byHour: List<HourCountDto>,
+)
+
+// ---------------------------------------------------------------- check-in
+data class CheckInRequest(val code: String)
+
+data class StaffCheckInRequest(val note: String)
+
+data class RoomCheckInCodeDto(
+    @SerializedName("room_code") val roomCode: String,
+    @SerializedName("room_name") val roomName: String,
+    @SerializedName("checkin_code") val checkinCode: String,
+)
+
+// ---------------------------------------------------------------- waitlist
+data class WaitlistEntryDto(
+    val id: Long,
+    @SerializedName("room_code") val roomCode: String,
+    @SerializedName("room_name") val roomName: String,
+    val building: String,
+    @SerializedName("start_time") val startTime: String,
+    @SerializedName("end_time") val endTime: String,
+    val status: String,
+    val position: Int?,
+    @SerializedName("booking_id") val bookingId: Long?,
+)
+
+// ---------------------------------------------------------------- monthly report
+data class ReportSummaryDto(
+    @SerializedName("total_requests") val totalRequests: Int,
+    val approved: Int,
+    val pending: Int,
+    val rejected: Int,
+    val cancelled: Int,
+    @SerializedName("checked_in") val checkedIn: Int,
+    @SerializedName("no_shows") val noShows: Int,
+    @SerializedName("attendance_rate_percent") val attendanceRatePercent: Double?,
+    @SerializedName("booked_hours") val bookedHours: Double,
+    @SerializedName("used_hours") val usedHours: Double,
+)
+
+data class ReportRoomDto(
+    @SerializedName("room_code") val roomCode: String,
+    @SerializedName("room_name") val roomName: String,
+    val approved: Int,
+    @SerializedName("checked_in") val checkedIn: Int,
+    @SerializedName("no_shows") val noShows: Int,
+    @SerializedName("booked_hours") val bookedHours: Double,
+    @SerializedName("used_hours") val usedHours: Double,
+    @SerializedName("utilization_percent") val utilizationPercent: Double,
+)
+
+data class ReportNoShowUserDto(
+    @SerializedName("user_id") val userId: Long,
+    @SerializedName("full_name") val fullName: String,
+    val email: String,
+    @SerializedName("no_shows") val noShows: Int,
+)
+
+data class ReportWaitlistDto(val joined: Int, val waiting: Int, val promoted: Int, val cancelled: Int, val expired: Int)
+
+data class MonthlyReportDto(
+    val summary: ReportSummaryDto,
+    val rooms: List<ReportRoomDto>,
+    @SerializedName("no_show_users") val noShowUsers: List<ReportNoShowUserDto>,
+    val waitlist: ReportWaitlistDto,
 )
 
 // ---------------------------------------------------------------- errors

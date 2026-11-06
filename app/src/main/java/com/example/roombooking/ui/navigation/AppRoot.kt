@@ -1,5 +1,7 @@
 package com.example.roombooking.ui.navigation
 
+import com.example.roombooking.ui.common.CappedFontScale
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -68,16 +70,20 @@ import com.example.roombooking.domain.User
 import com.example.roombooking.ui.admin.AdminScreen
 import com.example.roombooking.ui.admin.ClosuresScreen
 import com.example.roombooking.ui.admin.RoomFormScreen
+import com.example.roombooking.ui.admin.RoomQrScreen
 import com.example.roombooking.ui.approval.ApprovalsScreen
 import com.example.roombooking.ui.auth.LoginScreen
 import com.example.roombooking.ui.auth.RegisterScreen
 import com.example.roombooking.ui.booking.BookingDetailScreen
 import com.example.roombooking.ui.booking.BookingFormScreen
 import com.example.roombooking.ui.booking.MyBookingsScreen
+import com.example.roombooking.ui.booking.WaitlistScreen
 import com.example.roombooking.ui.common.LoadingView
 import com.example.roombooking.ui.common.Motion
 import com.example.roombooking.ui.dashboard.DashboardScreen
 import com.example.roombooking.ui.notifications.NotificationsScreen
+import com.example.roombooking.ui.report.ReportScreen
+import com.example.roombooking.ui.theme.Brand
 import com.example.roombooking.ui.rooms.RoomDetailScreen
 import com.example.roombooking.ui.rooms.RoomListScreen
 import kotlinx.coroutines.launch
@@ -106,6 +112,11 @@ object Routes {
     fun booking(id: Long) = "booking/$id"
 
     const val NOTIFICATIONS = "notifications"
+    const val WAITLIST = "waitlist"
+    const val REPORT = "report"
+
+    const val ROOM_QR = "admin/qr/{roomId}"
+    fun roomQr(id: Long) = "admin/qr/$id"
 
     const val ADMIN_ROOM = "admin/room/{roomId}"
     fun adminRoom(id: Long?) = "admin/room/${id ?: -1}"
@@ -117,10 +128,10 @@ object Routes {
 private data class TabItem(val route: String, val label: String, val icon: ImageVector)
 
 private fun tabsFor(role: Role): List<TabItem> = buildList {
-    add(TabItem(Routes.ROOMS, "ค้นหาห้อง", Icons.Filled.Search))
-    add(TabItem(Routes.MY_BOOKINGS, "การจองของฉัน", Icons.Filled.Event))
+    add(TabItem(Routes.ROOMS, "ค้นหา", Icons.Filled.Search))
+    add(TabItem(Routes.MY_BOOKINGS, "การจอง", Icons.Filled.Event))
     if (role.isStaff) {
-        add(TabItem(Routes.APPROVALS, "พิจารณา", Icons.Filled.TaskAlt))
+        add(TabItem(Routes.APPROVALS, "อนุมัติ", Icons.Filled.TaskAlt))
         add(TabItem(Routes.DASHBOARD, "สถิติ", Icons.Filled.BarChart))
     }
     if (role == Role.ADMIN) add(TabItem(Routes.ADMIN, "ผู้ดูแล", Icons.Filled.AdminPanelSettings))
@@ -211,7 +222,7 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
 
     val topActions: @Composable () -> Unit = {
         IconButton(onClick = { nav.navigate(Routes.NOTIFICATIONS) }) {
-            BadgedBox(badge = { if (unread > 0) Badge { Text(if (unread > 99) "99+" else unread.toString()) } }) {
+            BadgedBox(badge = { if (unread > 0) Badge(containerColor = Brand.Highlight, contentColor = Brand.Ink) { Text(if (unread > 99) "99+" else unread.toString()) } }) {
                 Icon(
                     Icons.Filled.Notifications, "การแจ้งเตือน",
                     Modifier.graphicsLayer {
@@ -232,19 +243,22 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
                 enter = slideInVertically(tween(Motion.MEDIUM)) { it } + fadeIn(tween(Motion.MEDIUM)),
                 exit = slideOutVertically(tween(Motion.SHORT)) { it } + fadeOut(tween(Motion.SHORT)),
             ) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = currentRoute == tab.route,
-                            onClick = { nav.navigateToTab(tab.route) },
-                            icon = { TabIcon(tab.icon, currentRoute == tab.route) },
-                            label = { Text(tab.label, maxLines = 1) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        )
+                // Five tabs share a phone's width, so the labels can only grow so far.
+                CappedFontScale {
+                    NavigationBar {
+                        tabs.forEach { tab ->
+                            NavigationBarItem(
+                                selected = currentRoute == tab.route,
+                                onClick = { nav.navigateToTab(tab.route) },
+                                icon = { TabIcon(tab.icon, currentRoute == tab.route) },
+                                label = { Text(tab.label, maxLines = 1) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -265,16 +279,23 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
                 )
             }
             composable(Routes.MY_BOOKINGS) {
-                MyBookingsScreen(onOpen = { nav.navigate(Routes.booking(it)) }, topActions = topActions)
+                MyBookingsScreen(
+                    onOpen = { nav.navigate(Routes.booking(it)) },
+                    onOpenWaitlist = { nav.navigate(Routes.WAITLIST) },
+                    topActions = topActions,
+                )
             }
             composable(Routes.APPROVALS) {
                 ApprovalsScreen(onOpen = { nav.navigate(Routes.booking(it)) }, topActions = topActions)
             }
-            composable(Routes.DASHBOARD) { DashboardScreen(topActions = topActions) }
+            composable(Routes.DASHBOARD) {
+                DashboardScreen(onOpenReport = { nav.navigate(Routes.REPORT) }, topActions = topActions)
+            }
             composable(Routes.ADMIN) {
                 AdminScreen(
                     onEditRoom = { nav.navigate(Routes.adminRoom(it)) },
                     onClosures = { nav.navigate(Routes.closures(it)) },
+                    onCheckInQr = { nav.navigate(Routes.roomQr(it)) },
                     topActions = topActions,
                 )
             }
@@ -306,6 +327,9 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
                     onSaved = { id ->
                         nav.navigate(Routes.booking(id)) { popUpTo(Routes.BOOK_NEW) { inclusive = true } }
                     },
+                    onJoinedWaitlist = {
+                        nav.navigate(Routes.WAITLIST) { popUpTo(Routes.BOOK_NEW) { inclusive = true } }
+                    },
                 )
             }
             composable(Routes.BOOK_EDIT, arguments = listOf(navArgument("bookingId") { type = NavType.LongType })) {
@@ -320,6 +344,15 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
             }
             composable(Routes.NOTIFICATIONS) {
                 NotificationsScreen(onBack = { nav.popBackStack() }, onOpenBooking = { nav.navigate(Routes.booking(it)) })
+            }
+            composable(Routes.WAITLIST) {
+                WaitlistScreen(onBack = { nav.popBackStack() }, onOpenBooking = { nav.navigate(Routes.booking(it)) })
+            }
+            composable(Routes.REPORT) {
+                ReportScreen(onBack = { nav.popBackStack() }, onOpenBooking = { nav.navigate(Routes.booking(it)) })
+            }
+            composable(Routes.ROOM_QR, arguments = listOf(navArgument("roomId") { type = NavType.LongType })) {
+                RoomQrScreen(onBack = { nav.popBackStack() })
             }
             composable(Routes.ADMIN_ROOM, arguments = listOf(navArgument("roomId") { type = NavType.LongType })) {
                 RoomFormScreen(onBack = { nav.popBackStack() })
@@ -363,7 +396,9 @@ private fun AccountMenu(user: User, onLogout: () -> Unit) {
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.AccountCircle, "บัญชี") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text("${user.fullName}\n${user.email} · ${user.role}") }, onClick = {}, enabled = false)
+            DropdownMenuItem(text = { Text("${user.fullName}\n${user.email} · ${user.role}") }, onClick = {}, enabled = false,
+                // not tappable, but this is information to read rather than a dimmed option
+                colors = MenuDefaults.itemColors(disabledTextColor = MaterialTheme.colorScheme.onSurface))
             HorizontalDivider()
             DropdownMenuItem(text = { Text("ออกจากระบบ") }, onClick = { open = false; onLogout() })
         }

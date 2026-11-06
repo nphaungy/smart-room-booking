@@ -1,5 +1,23 @@
 package com.example.roombooking.ui.common
 
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -63,6 +81,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.roombooking.domain.BookingRules
 import com.example.roombooking.domain.BookingStatus
+import androidx.compose.material3.HorizontalDivider
 import com.example.roombooking.ui.theme.Brand
 import com.example.roombooking.ui.theme.StatusColors
 import java.time.LocalDate
@@ -75,40 +94,49 @@ fun ScreenScaffold(
     subtitle: String? = null,
     actions: @Composable () -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     snackbarHostState: SnackbarHostState? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
         topBar = {
-            Column(Modifier.background(Brush.horizontalGradient(Brand.Hero))) {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(title, maxLines = 1, fontWeight = FontWeight.Bold)
-                            if (subtitle != null) {
-                                Text(subtitle, style = MaterialTheme.typography.labelMedium, color = Brand.Highlight, maxLines = 1)
+            // The bar has a fixed height: with large text the decorative subtitle gives way to the title.
+            val showSubtitle = subtitle != null && LocalDensity.current.fontScale <= 1.15f
+            CappedFontScale {
+                Column(Modifier.background(Brush.horizontalGradient(Brand.Hero))) {
+                    TopAppBar(
+                        title = {
+                            Column {
+                                Text(title, Modifier.semantics { heading() }, maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+                                if (showSubtitle) {
+                                    Text(subtitle, style = MaterialTheme.typography.labelMedium, color = Brand.Highlight, maxLines = 1)
+                                }
                             }
-                        }
-                    },
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ")
+                        },
+                        navigationIcon = {
+                            if (onBack != null) {
+                                IconButton(onClick = onBack) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ")
+                                }
                             }
-                        }
-                    },
-                    actions = { actions() },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White,
-                        actionIconContentColor = Color.White,
-                    ),
-                )
+                        },
+                        actions = { actions() },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent,
+                            titleContentColor = Color.White,
+                            navigationIconContentColor = Color.White,
+                            actionIconContentColor = Color.White,
+                        ),
+                    )
+                    // a gold hairline; it also keeps the bar distinct from the page in dark mode
+                    HorizontalDivider(color = Brand.Highlight.copy(alpha = 0.4f))
+                }
             }
         },
         floatingActionButton = floatingActionButton,
+        bottomBar = bottomBar,
         snackbarHost = { snackbarHostState?.let { SnackbarHost(it) } },
         content = content,
     )
@@ -126,7 +154,7 @@ fun ErrorView(message: String, onRetry: () -> Unit, modifier: Modifier = Modifie
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        GradientIcon(Icons.Outlined.ErrorOutline, Brand.Sunset, Modifier.popIn())
+        GradientIcon(Icons.Outlined.ErrorOutline, Brand.Emerald, Modifier.popIn())
         Text(message, Modifier.padding(vertical = 12.dp), textAlign = TextAlign.Center)
         BounceButton(onClick = onRetry) { Text("ลองใหม่") }
     }
@@ -139,10 +167,46 @@ fun EmptyView(message: String, modifier: Modifier = Modifier, action: (@Composab
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        GradientIcon(Icons.Outlined.Inbox, Brand.Grape, Modifier.bob())
+        GradientIcon(Icons.Outlined.Inbox, Brand.Emerald, Modifier.bob())
         Text(message, Modifier.padding(vertical = 12.dp), textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         action?.invoke()
+    }
+}
+
+/**
+ * For bars with a fixed height, where text scaled past [max] would be cut off. Page content
+ * stays outside this and scales fully with the user's setting.
+ */
+@Composable
+fun CappedFontScale(max: Float = 1.3f, content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(density.density, density.fontScale.coerceAtMost(max)),
+        content = content,
+    )
+}
+
+/** White on the ivory page in light mode; the raised tone in dark mode, where white isn't available. */
+@Composable
+fun appCardColors(): CardColors = CardDefaults.cardColors(
+    containerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest
+    else MaterialTheme.colorScheme.surfaceContainerLowest,
+)
+
+/**
+ * Keeps a screen's main action in reach of the thumb. It rides above the keyboard, which also
+ * shrinks the scrolling content above it, so a focused field is scrolled into view.
+ */
+@Composable
+fun BottomActionBar(content: @Composable ColumnScope.() -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shadowElevation = 3.dp) {
+        Column(
+            Modifier.fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            content = content,
+        )
     }
 }
 
@@ -155,16 +219,17 @@ fun GradientIcon(icon: ImageVector, colors: List<Color>, modifier: Modifier = Mo
     ) { Icon(icon, null, Modifier.size(size * 0.55f), tint = Color.White) }
 }
 
-/** Section heading with a small gradient bar in front of it. */
+/** Section heading with a thin bar in front of it. */
 @Composable
 fun GradientTitle(text: String, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.width(4.dp).height(20.dp)
-                .background(Brush.verticalGradient(Brand.Berry), MaterialTheme.shapes.extraSmall),
+            Modifier.width(2.dp).height(18.dp)
+                .background(MaterialTheme.colorScheme.secondary, MaterialTheme.shapes.extraSmall),
         )
         Spacer(Modifier.width(8.dp))
-        Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text(text, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -210,18 +275,31 @@ fun <T> StateContent(
     }
 }
 
+@Composable
 fun statusColor(status: BookingStatus): Color = when (status) {
     BookingStatus.PENDING -> StatusColors.pending
     BookingStatus.APPROVED -> StatusColors.free
-    BookingStatus.REJECTED -> StatusColors.approved
+    BookingStatus.REJECTED -> StatusColors.rejected
     BookingStatus.CANCELLED -> StatusColors.cancelled
+    BookingStatus.NO_SHOW -> StatusColors.noShow
 }
 
 @Composable
 fun StatusChip(status: BookingStatus, modifier: Modifier = Modifier, onGradient: Boolean = false) {
     val color by animateColorAsState(statusColor(status), tween(Motion.MEDIUM), label = "statusChip")
-    // On a gradient a see-through tint would be unreadable, so the chip turns solid white.
-    val container = if (onGradient) Color.White else color.copy(alpha = 0.15f)
+    // On a dark hero a see-through tint would be unreadable, so the chip turns solid white.
+    // Approved is the status people look for, so it alone gets a solid fill.
+    val solid = status == BookingStatus.APPROVED
+    val container = when {
+        onGradient -> Color.White
+        solid -> color
+        else -> color.copy(alpha = 0.12f)
+    }
+    val textColor = when {
+        onGradient -> Brand.Ink
+        solid -> MaterialTheme.colorScheme.surface
+        else -> color
+    }
     Surface(color = container, shape = MaterialTheme.shapes.small, modifier = modifier) {
         AnimatedContent(targetState = status.thai, transitionSpec = {
             (fadeIn(tween(Motion.MEDIUM)) + scaleIn(tween(Motion.MEDIUM), initialScale = 0.8f)) togetherWith
@@ -230,10 +308,10 @@ fun StatusChip(status: BookingStatus, modifier: Modifier = Modifier, onGradient:
             Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 // a booking still waiting for a decision keeps a live pulse
                 if (status == BookingStatus.PENDING) {
-                    PulsingDot(color, size = 6.dp)
+                    PulsingDot(textColor, size = 6.dp)
                     Spacer(Modifier.width(6.dp))
                 }
-                Text(label, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text(label, color = textColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -262,7 +340,35 @@ fun DateChips(selected: LocalDate?, onSelect: (LocalDate) -> Unit, modifier: Mod
     }
 }
 
-/** Picks a time in 30-minute steps (BR08), shown as a button with a drop-down list. */
+/** A read-only field that opens a menu, so TalkBack announces it as a choice with its current value. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectField(
+    label: String,
+    value: String,
+    choices: List<Pair<String, () -> Unit>>,
+    modifier: Modifier = Modifier,
+) {
+    var open by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }, modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text(label, maxLines = 1) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            choices.forEach { (text, select) ->
+                DropdownMenuItem(text = { Text(text) }, onClick = { select(); open = false })
+            }
+        }
+    }
+}
+
+/** Picks a time in 30-minute steps (BR08). */
 @Composable
 fun TimeDropdown(
     label: String,
@@ -271,18 +377,12 @@ fun TimeDropdown(
     modifier: Modifier = Modifier,
     options: List<Int> = BookingRules.timeOptions,
 ) {
-    var open by remember { mutableStateOf(false) }
-    Box(modifier) {
-        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("$label: " + (selectedMinute?.let(BookingRules::minuteLabel) ?: "--:--"))
-            Icon(Icons.Filled.ArrowDropDown, null)
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            options.forEach { m ->
-                DropdownMenuItem(text = { Text(BookingRules.minuteLabel(m)) }, onClick = { onSelect(m); open = false })
-            }
-        }
-    }
+    SelectField(
+        label = label,
+        value = selectedMinute?.let(BookingRules::minuteLabel).orEmpty(),
+        choices = options.map { m -> BookingRules.minuteLabel(m) to { onSelect(m) } },
+        modifier = modifier,
+    )
 }
 
 /** Generic single-choice drop-down. */
@@ -296,19 +396,13 @@ fun <T> ChoiceDropdown(
     modifier: Modifier = Modifier,
     allowNone: Boolean = false,
 ) {
-    var open by remember { mutableStateOf(false) }
-    Box(modifier) {
-        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("$label: " + (selected?.let(optionLabel) ?: "ทั้งหมด"))
-            Icon(Icons.Filled.ArrowDropDown, null)
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            if (allowNone) DropdownMenuItem(text = { Text("ทั้งหมด") }, onClick = { onSelect(null); open = false })
-            options.forEach { o ->
-                DropdownMenuItem(text = { Text(optionLabel(o)) }, onClick = { onSelect(o); open = false })
-            }
-        }
-    }
+    val none: List<Pair<String, () -> Unit>> = if (allowNone) listOf("ทั้งหมด" to { onSelect(null) }) else emptyList()
+    SelectField(
+        label = label,
+        value = selected?.let(optionLabel) ?: if (allowNone) "ทั้งหมด" else "",
+        choices = none + options.map { o -> optionLabel(o) to { onSelect(o) } },
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -327,7 +421,8 @@ fun NumberField(label: String, value: String, onValueChange: (String) -> Unit, m
 
 @Composable
 fun LabelValue(label: String, value: String, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    // merged so TalkBack reads the label and its value as one item
+    Row(modifier.fillMaxWidth().padding(vertical = 4.dp).semantics(mergeDescendants = true) {}) {
         Text(label, Modifier.weight(0.38f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, Modifier.weight(0.62f))
     }

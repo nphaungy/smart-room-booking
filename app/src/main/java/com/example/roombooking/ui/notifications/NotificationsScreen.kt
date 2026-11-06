@@ -1,5 +1,6 @@
 package com.example.roombooking.ui.notifications
 
+import com.example.roombooking.ui.common.appCardColors
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -132,7 +133,8 @@ private fun NotificationCard(n: AppNotification, modifier: Modifier = Modifier, 
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().pressScale(source),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (n.isRead) 0.dp else 2.dp),
+        colors = appCardColors(),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (n.isRead) 0.dp else 1.dp),
         interactionSource = source,
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -143,7 +145,7 @@ private fun NotificationCard(n: AppNotification, modifier: Modifier = Modifier, 
                     size = 40.dp,
                 )
             } else {
-                GradientIcon(Icons.Filled.Notifications, Brand.Berry, size = 40.dp)
+                GradientIcon(Icons.Filled.Notifications, Brand.Emerald, size = 40.dp)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -155,7 +157,7 @@ private fun NotificationCard(n: AppNotification, modifier: Modifier = Modifier, 
             }
             if (!n.isRead) {
                 Spacer(Modifier.width(8.dp))
-                PulsingDot(Brand.Pink)
+                PulsingDot(MaterialTheme.colorScheme.primary)
             }
         }
     }

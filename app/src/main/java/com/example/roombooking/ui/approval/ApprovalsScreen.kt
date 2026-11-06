@@ -67,7 +67,7 @@ fun ApprovalsScreen(
     vm: ApprovalsViewModel = viewModel(factory = ApprovalsViewModel.Factory),
 ) {
     val tabs: List<BookingStatus?> = listOf(BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.REJECTED,
-        BookingStatus.CANCELLED, null)
+        BookingStatus.CANCELLED, BookingStatus.NO_SHOW, null)
     ScreenScaffold(
         title = "พิจารณาการจอง",
         actions = {

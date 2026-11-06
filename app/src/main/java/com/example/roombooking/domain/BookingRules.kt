@@ -37,6 +37,24 @@ object BookingRules {
 
     fun toApi(dt: OffsetDateTime): String = dt.atZoneSameInstant(ZONE).format(API_FORMAT)
 
+    /** Today while a slot can still start, otherwise tomorrow. */
+    fun firstBookableDate(now: ZonedDateTime = ZonedDateTime.now(ZONE)): LocalDate {
+        val lastStart = LocalTime.of(CLOSE_HOUR, 0).minusMinutes(SLOT_MINUTES.toLong())
+        return if (now.toLocalTime().isBefore(lastStart)) now.toLocalDate() else now.toLocalDate().plusDays(1)
+    }
+
+    /**
+     * The first free time that hasn't started, as start and end minutes: an hour if the room
+     * stays free that long, otherwise up to the next booking. Null when the day has none.
+     */
+    fun suggestSlot(slots: List<ScheduleSlot>, now: OffsetDateTime): Pair<Int, Int>? {
+        val first = slots.indexOfFirst { it.kind == SlotKind.FREE && it.start.isAfter(now) }
+        if (first < 0) return null
+        val wanted = 60 / SLOT_MINUTES
+        val free = slots.drop(first).take(wanted).takeWhile { it.kind == SlotKind.FREE }
+        return minuteOf(free.first().start) to minuteOf(free.last().end)
+    }
+
     /**
      * Returns a Thai error message, or null when the input is valid.
      * Mirrors BR01 (start < end), BR07 (capacity), BR08 (not in the past).

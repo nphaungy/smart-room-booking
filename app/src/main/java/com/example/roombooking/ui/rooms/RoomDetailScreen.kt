@@ -1,5 +1,14 @@
 package com.example.roombooking.ui.rooms
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import com.example.roombooking.ui.theme.StatusColors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -40,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -66,8 +76,6 @@ import com.example.roombooking.ui.common.toState
 import com.example.roombooking.ui.common.floatingOrbs
 import com.example.roombooking.ui.common.flowingGradient
 import com.example.roombooking.ui.theme.Brand
-import com.example.roombooking.ui.theme.typeGradient
-import com.example.roombooking.ui.theme.StatusColors
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -75,7 +83,7 @@ import java.time.OffsetDateTime
 class RoomDetailViewModel(handle: SavedStateHandle, private val repo: RoomRepository) : ViewModel() {
     val roomId: Long = checkNotNull(handle.get<Long>("roomId"))
     var date by mutableStateOf(
-        handle.get<String>("date")?.takeIf { it.isNotBlank() }?.let { LocalDate.parse(it) } ?: BookingRules.today(),
+        handle.get<String>("date")?.takeIf { it.isNotBlank() }?.let { LocalDate.parse(it) } ?: BookingRules.firstBookableDate(),
     )
         private set
     var room by mutableStateOf<UiState<Room>>(UiState.Loading)
@@ -111,11 +119,20 @@ class RoomDetailViewModel(handle: SavedStateHandle, private val repo: RoomReposi
     }
 }
 
-private fun slotColor(kind: SlotKind): Color = when (kind) {
-    SlotKind.FREE -> StatusColors.free
-    SlotKind.PENDING -> StatusColors.pending
-    SlotKind.APPROVED -> StatusColors.approved
+/** Free is empty, booked is solid, pending is gold-tinted and closed is a muted stone. */
+@Composable
+private fun slotFill(kind: SlotKind): Color = when (kind) {
+    SlotKind.FREE -> Color.Transparent
+    SlotKind.PENDING -> MaterialTheme.colorScheme.secondaryContainer
+    SlotKind.APPROVED -> MaterialTheme.colorScheme.primary
     SlotKind.CLOSURE -> StatusColors.closure
+}
+
+@Composable
+private fun slotTextColor(kind: SlotKind): Color = when (kind) {
+    SlotKind.FREE, SlotKind.CLOSURE -> MaterialTheme.colorScheme.onSurface
+    SlotKind.PENDING -> MaterialTheme.colorScheme.onSecondaryContainer
+    SlotKind.APPROVED -> MaterialTheme.colorScheme.onPrimary
 }
 
 private fun slotText(slot: ScheduleSlot): String = when (slot.kind) {
@@ -183,12 +200,15 @@ fun RoomDetailScreen(
                     is UiState.Success -> items(s.data.slots, key = { it.start.toString() }) { slot ->
                         val bookable = slot.kind == SlotKind.FREE && r.data.active && slot.start.isAfter(OffsetDateTime.now())
                         val bookingId = slot.bookingId
+                        // Someone else's slot: the form reports the conflict and offers the queue.
+                        val queueable = slot.kind in listOf(SlotKind.PENDING, SlotKind.APPROVED) && bookingId == null &&
+                            r.data.active && slot.start.isAfter(OffsetDateTime.now())
                         val click: (() -> Unit)? = when {
-                            bookable -> fun() { onBook(vm.roomId, vm.date, BookingRules.minuteOf(slot.start)) }
+                            bookable || queueable -> fun() { onBook(vm.roomId, vm.date, BookingRules.minuteOf(slot.start)) }
                             bookingId != null -> fun() { onOpenBooking(bookingId) }
                             else -> null
                         }
-                        SlotRow(slot = slot, onClick = click)
+                        SlotRow(slot = slot, onClick = click, queueable = queueable)
                     }
                 }
             }
@@ -196,6 +216,7 @@ fun RoomDetailScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RoomHeader(room: Room) {
     Card(
@@ -205,7 +226,7 @@ private fun RoomHeader(room: Room) {
     ) {
         Column(
             Modifier.fillMaxWidth()
-                .flowingGradient(typeGradient(room.typeName))
+                .flowingGradient()
                 .floatingOrbs()
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -214,7 +235,7 @@ private fun RoomHeader(room: Room) {
             Text(room.name, color = Color.White, style = MaterialTheme.typography.headlineSmall)
             Text("${room.building} ชั้น ${room.floor} · ${room.typeName}", color = Color.White.copy(alpha = 0.85f))
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 HeaderPill("ความจุ ${room.capacity} คน")
                 room.equipment.take(2).forEach { HeaderPill(if (it.quantity > 1) "${it.name} ×${it.quantity}" else it.name) }
             }
@@ -232,13 +253,17 @@ private fun HeaderPill(text: String) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Legend() {
-    Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         listOf(SlotKind.FREE to "ว่าง", SlotKind.PENDING to "รออนุมัติ", SlotKind.APPROVED to "จองแล้ว",
             SlotKind.CLOSURE to "ปิด").forEach { (k, label) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(12.dp).background(slotColor(k), MaterialTheme.shapes.extraSmall))
+                Box(
+                    Modifier.size(12.dp).background(slotFill(k), MaterialTheme.shapes.extraSmall)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall),
+                )
                 Text(" $label", style = MaterialTheme.typography.labelMedium)
             }
         }
@@ -246,24 +271,30 @@ private fun Legend() {
 }
 
 @Composable
-private fun SlotRow(slot: ScheduleSlot, onClick: (() -> Unit)?) {
-    val color = slotColor(slot.kind)
+private fun SlotRow(slot: ScheduleSlot, onClick: (() -> Unit)?, queueable: Boolean) {
     val past = !slot.end.isAfter(OffsetDateTime.now())
-    var mod = Modifier.fillMaxWidth().height(44.dp)
-    if (onClick != null) mod = mod.clickable(onClick = onClick)
+    // Grows with the text, and scaled so the times stay in one column on one line.
+    var mod = Modifier.fillMaxWidth().heightIn(min = 48.dp).height(IntrinsicSize.Min)
+    mod = if (onClick != null) mod.clickable(role = Role.Button, onClick = onClick) else mod.semantics(mergeDescendants = true) {}
     Row(mod, verticalAlignment = Alignment.CenterVertically) {
-        Text(Fmt.time(slot.start), Modifier.width(56.dp), style = MaterialTheme.typography.labelLarge)
+        Text(Fmt.time(slot.start), Modifier.width(56.dp * LocalDensity.current.fontScale), softWrap = false,
+            style = MaterialTheme.typography.labelLarge)
         Box(
-            Modifier.weight(1f).fillMaxSize().padding(vertical = 2.dp)
-                .background(color.copy(alpha = if (past) 0.08f else 0.18f), MaterialTheme.shapes.small)
-                .let { if (slot.isMine) it.border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small) else it }
-                .padding(horizontal = 12.dp),
+            Modifier.weight(1f).fillMaxHeight().padding(vertical = 2.dp)
+                .alpha(if (past) 0.4f else 1f)
+                .background(slotFill(slot.kind), MaterialTheme.shapes.small)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
-                if (past && slot.kind == SlotKind.FREE) "ผ่านไปแล้ว" else slotText(slot) + if (slot.isMine) " (ของฉัน)" else "",
-                color = if (past) MaterialTheme.colorScheme.outline else color,
-                style = MaterialTheme.typography.bodyMedium, maxLines = 1,
+                when {
+                    past && slot.kind == SlotKind.FREE -> "ผ่านไปแล้ว"
+                    queueable -> (if (slot.kind == SlotKind.PENDING) "รออนุมัติ" else "จองแล้ว") + " — แตะเพื่อเข้าคิว"
+                    else -> slotText(slot) + if (slot.isMine) " (ของฉัน)" else ""
+                },
+                color = slotTextColor(slot.kind),
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
     }

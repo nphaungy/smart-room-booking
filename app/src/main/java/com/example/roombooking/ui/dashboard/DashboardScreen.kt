@@ -1,12 +1,9 @@
 package com.example.roombooking.ui.dashboard
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import com.example.roombooking.ui.common.CappedFontScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,8 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -48,9 +44,8 @@ import com.example.roombooking.data.repository.AdminRepository
 import com.example.roombooking.domain.BookingRules
 import com.example.roombooking.domain.BookingStatus
 import com.example.roombooking.domain.Dashboard
-import com.example.roombooking.ui.common.Fmt
 import com.example.roombooking.ui.common.GradientTitle
-import com.example.roombooking.ui.common.Motion
+import com.example.roombooking.ui.common.MonthSwitcher
 import com.example.roombooking.ui.common.animatedCount
 import com.example.roombooking.ui.common.ScreenScaffold
 import com.example.roombooking.ui.common.StateContent
@@ -93,65 +88,55 @@ class DashboardViewModel(private val repo: AdminRepository) : ViewModel() {
 
 @Composable
 fun DashboardScreen(
+    onOpenReport: () -> Unit,
     topActions: @Composable () -> Unit,
     vm: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
 ) {
-    ScreenScaffold(title = "Dashboard การใช้ห้อง", actions = topActions) { padding ->
+    ScreenScaffold(
+        title = "สถิติการใช้ห้อง",
+        actions = {
+            IconButton(onClick = onOpenReport) { Icon(Icons.Filled.Assessment, "รายงานรายเดือน") }
+            topActions()
+        },
+    ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { vm.shift(-1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "เดือนก่อน") }
-                // the month slides in from the side it was navigated towards
-                AnimatedContent(
-                    targetState = vm.month,
-                    modifier = Modifier.weight(1f),
-                    transitionSpec = {
-                        val direction = if (targetState > initialState) 1 else -1
-                        (slideInHorizontally(tween(Motion.MEDIUM)) { it * direction } + fadeIn(tween(Motion.MEDIUM))) togetherWith
-                            (slideOutHorizontally(tween(Motion.MEDIUM)) { -it * direction } + fadeOut(tween(Motion.SHORT)))
-                    },
-                    label = "dashboardMonth",
-                ) { m ->
-                    Text(Fmt.monthYear(m.atDay(1)), style = MaterialTheme.typography.titleMedium)
-                }
-                IconButton(onClick = { vm.shift(1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "เดือนถัดไป") }
-            }
+            MonthSwitcher(vm.month, vm::shift)
             StateContent(vm.state, vm::load, "ไม่มีข้อมูล") { d -> DashboardContent(d) }
         }
     }
 }
 
 @Composable
-private fun StatCard(label: String, value: String, colors: List<Color>, modifier: Modifier = Modifier) {
+fun StatCard(label: String, value: String, colors: List<Color>, modifier: Modifier = Modifier) {
     Card(modifier.fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
-        Column(Modifier.fillMaxSize().background(Brush.linearGradient(colors)).padding(14.dp)) {
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+        Column(Modifier.fillMaxSize().background(Brush.linearGradient(colors)).padding(14.dp).semantics(mergeDescendants = true) {}) {
+            // Three cards share the width, so a figure like 100% must stay on one line.
+            CappedFontScale {
+                Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+            }
             Text(label, style = MaterialTheme.typography.bodySmall, color = Color.White)
         }
     }
 }
 
-/** Rounded bar on a track, coloured by how busy the room is. */
+/** Bar on a track; its length shows how busy the room is. */
 @Composable
 private fun UsageBar(fraction: Float, modifier: Modifier = Modifier) {
-    val colors = when {
-        fraction < 0.4f -> Brand.Ocean
-        fraction < 0.75f -> listOf(Brand.Amber, Brand.Coral)
-        else -> Brand.Sunset
-    }
     Box(
         modifier.fillMaxWidth().height(10.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small),
     ) {
         Box(
             Modifier.fillMaxWidth(fraction).fillMaxHeight()
-                .background(Brush.horizontalGradient(colors), MaterialTheme.shapes.small),
+                .background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small),
         )
     }
 }
 
-/** Hour chart colour: calm teal for quiet hours through amber to pink at the peak. */
+/** Hour chart colour: pale grey for quiet hours through to solid at the peak. */
+@Composable
 private fun heatColor(level: Float): Color =
-    if (level < 0.5f) lerp(Brand.Teal, Brand.Amber, level * 2) else lerp(Brand.Amber, Brand.Pink, (level - 0.5f) * 2)
+    lerp(MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.primary, level)
 
 @Composable
 private fun DashboardContent(d: Dashboard) {
@@ -160,12 +145,12 @@ private fun DashboardContent(d: Dashboard) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("คำขอทั้งหมด", animatedCount(d.totalBookings).toString(), Brand.Grape, Modifier.weight(1f).enterAnimation(0))
-            StatCard("รออนุมัติตอนนี้", animatedCount(d.pendingNow, 90).toString(), Brand.Sunset, Modifier.weight(1f).enterAnimation(1))
+            StatCard("คำขอทั้งหมด", animatedCount(d.totalBookings).toString(), Brand.Emerald, Modifier.weight(1f).enterAnimation(0))
+            StatCard("รออนุมัติตอนนี้", animatedCount(d.pendingNow, 90).toString(), Brand.Emerald, Modifier.weight(1f).enterAnimation(1))
             StatCard(
                 "อัตราอนุมัติ",
                 d.approvalRatePercent?.let { "${animatedCount(it.toInt(), 180)}%" } ?: "-",
-                Brand.Ocean,
+                Brand.Emerald,
                 Modifier.weight(1f).enterAnimation(2),
             )
         }
@@ -175,9 +160,9 @@ private fun DashboardContent(d: Dashboard) {
         BookingStatus.entries.forEachIndexed { i, s ->
             val n = d.byStatus[s] ?: 0
             val fraction = animatedProgress(n / maxStatus.toFloat(), delayMillis = i * 90)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(s.thai, Modifier.width(96.dp))
-                Box(Modifier.weight(1f).height(18.dp)) {
+            Row(Modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
+                Text(s.thai, Modifier.weight(0.35f))
+                Box(Modifier.weight(0.65f).height(18.dp)) {
                     Box(Modifier.fillMaxWidth(fraction).fillMaxHeight()
                         .background(statusColor(s), MaterialTheme.shapes.small))
                 }
@@ -188,11 +173,11 @@ private fun DashboardContent(d: Dashboard) {
         GradientTitle("อัตราการใช้ห้อง (ชั่วโมงที่อนุมัติ ÷ ชั่วโมงเปิดให้บริการ)")
         d.rooms.forEachIndexed { i, r ->
             val usage = animatedProgress((r.utilizationPercent / 100.0).toFloat().coerceIn(0f, 1f), delayMillis = 200 + i * 60)
-            Column {
-                Row {
-                    Text("${r.roomCode} ${r.roomName}", Modifier.weight(1f))
-                    Text("%.1f ชม. · %.1f%%".format(r.approvedHours, r.utilizationPercent))
-                }
+            Column(Modifier.semantics(mergeDescendants = true) {}) {
+                // On separate lines: side by side, large text would squeeze the name until it broke mid-word.
+                Text("${r.roomCode} ${r.roomName}")
+                Text("%.1f ชม. · %.1f%%".format(r.approvedHours, r.utilizationPercent),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 UsageBar(usage, Modifier.padding(top = 4.dp))
             }
         }
@@ -204,7 +189,10 @@ private fun DashboardContent(d: Dashboard) {
             (BookingRules.OPEN_HOUR until BookingRules.CLOSE_HOUR).forEach { h ->
                 val n = d.byHour[h] ?: 0
                 val grow = animatedProgress(n / maxHour.toFloat(), delayMillis = 300 + (h - BookingRules.OPEN_HOUR) * 40)
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    Modifier.weight(1f).clearAndSetSemantics { contentDescription = "$h นาฬิกา $n รายการ" },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     if (n > 0) Text("$n", style = MaterialTheme.typography.labelSmall)
                     Box(Modifier.fillMaxWidth().height((100f * grow).dp)
                         .background(heatColor(n / maxHour.toFloat()), MaterialTheme.shapes.extraSmall))

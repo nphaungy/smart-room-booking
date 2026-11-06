@@ -7,11 +7,14 @@ import com.example.roombooking.data.remote.ApiService
 import com.example.roombooking.data.remote.BookingDto
 import com.example.roombooking.data.remote.BookingRequest
 import com.example.roombooking.data.remote.CancelRequest
+import com.example.roombooking.data.remote.CheckInRequest
 import com.example.roombooking.data.remote.RejectRequest
+import com.example.roombooking.data.remote.StaffCheckInRequest
 import com.example.roombooking.data.remote.apiCall
 import com.example.roombooking.domain.Booking
 import com.example.roombooking.domain.BookingRules
 import com.example.roombooking.domain.BookingStatus
+import com.example.roombooking.domain.WaitlistEntry
 import com.example.roombooking.domain.toDomain
 import com.example.roombooking.notification.ReminderScheduler
 import com.google.gson.Gson
@@ -64,6 +67,23 @@ class BookingRepository(
     suspend fun cancel(id: Long, note: String?): Result<Booking> =
         apiCall(gson) { api.cancelBooking(id, CancelRequest(note?.ifBlank { null })).toDomain() }
             .onSuccess { refreshMine() }
+
+    suspend fun checkIn(id: Long, code: String): Result<Booking> =
+        apiCall(gson) { api.checkIn(id, CheckInRequest(code)).toDomain() }.onSuccess { refreshMine() }
+
+    suspend fun staffCheckIn(id: Long, note: String): Result<Booking> =
+        apiCall(gson) { api.staffCheckIn(id, StaffCheckInRequest(note.trim())).toDomain() }
+
+    suspend fun joinWaitlist(roomId: Long, date: LocalDate, start: Int, end: Int, attendees: Int, purpose: String): Result<WaitlistEntry> =
+        apiCall(gson) {
+            api.joinWaitlist(
+                BookingRequest(roomId, BookingRules.toApi(date, start), BookingRules.toApi(date, end), attendees, purpose.trim()),
+            ).toDomain()
+        }
+
+    suspend fun myWaitlist(): Result<List<WaitlistEntry>> = apiCall(gson) { api.myWaitlist().map { it.toDomain() } }
+
+    suspend fun leaveWaitlist(id: Long): Result<WaitlistEntry> = apiCall(gson) { api.leaveWaitlist(id).toDomain() }
 
     // RB07 (approver/admin)
     suspend fun pendingQueue(): Result<List<Booking>> =

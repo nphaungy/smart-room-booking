@@ -147,12 +147,12 @@ fun Modifier.floatingOrbs(): Modifier {
     return this.clipToBounds().drawBehind {
         val unit = size.minDimension
         drawCircle(
-            Color.White.copy(alpha = 0.09f),
+            Brand.Highlight.copy(alpha = 0.10f),
             radius = unit * 0.55f,
             center = Offset(size.width * (0.88f + 0.05f * sin(phase)), size.height * (0.12f + 0.08f * cos(phase))),
         )
         drawCircle(
-            Color.White.copy(alpha = 0.07f),
+            Brand.Highlight.copy(alpha = 0.07f),
             radius = unit * 0.32f,
             center = Offset(size.width * (0.12f + 0.06f * cos(phase)), size.height * (0.92f + 0.06f * sin(phase))),
         )
@@ -237,12 +237,13 @@ fun PulsingDot(color: Color, modifier: Modifier = Modifier, size: Dp = 8.dp) {
     )
 }
 
-/** Loading indicator: three dots in the brand colours bouncing in turn. */
+/** Loading indicator: three dots fading from solid to faint, bouncing in turn. */
 @Composable
 fun BouncingDots(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "dots")
+    val dot = MaterialTheme.colorScheme.primary
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(Brand.Indigo, Brand.Violet, Brand.Pink).forEachIndexed { i, color ->
+        listOf(dot, dot.copy(alpha = 0.6f), dot.copy(alpha = 0.3f)).forEachIndexed { i, color ->
             val y by transition.animateFloat(
                 initialValue = 0f,
                 targetValue = -28f,
@@ -258,7 +259,7 @@ fun BouncingDots(modifier: Modifier = Modifier) {
     }
 }
 
-/** Main action button: gradient fill with the press-scale feedback. */
+/** Main action button: solid fill that inverts in dark mode, with the press-scale feedback. */
 @Composable
 fun BounceButton(
     onClick: () -> Unit,
@@ -267,18 +268,16 @@ fun BounceButton(
     content: @Composable RowScope.() -> Unit,
 ) {
     val source = remember { MutableInteractionSource() }
-    val fill = if (enabled) Brand.Grape else Brand.Grape.map { it.copy(alpha = 0.55f) }
+    val scheme = MaterialTheme.colorScheme
     Button(
         onClick = onClick,
-        modifier = modifier.pressScale(source, 0.95f)
-            .clip(ButtonDefaults.shape)
-            .background(Brush.horizontalGradient(fill)),
+        modifier = modifier.pressScale(source, 0.95f),
         enabled = enabled,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent,
-            contentColor = Color.White,
-            disabledContainerColor = Color.Transparent,
-            disabledContentColor = Color.White.copy(alpha = 0.85f),
+            containerColor = scheme.primary,
+            contentColor = scheme.onPrimary,
+            disabledContainerColor = scheme.primary.copy(alpha = 0.45f),
+            disabledContentColor = scheme.onPrimary.copy(alpha = 0.85f),
         ),
         interactionSource = source,
         content = content,

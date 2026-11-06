@@ -8,12 +8,13 @@ enum class Role { BOOKER, APPROVER, ADMIN;
     val isStaff: Boolean get() = this == APPROVER || this == ADMIN
 }
 
-/** RB06: the four booking statuses. */
+/** RB06: the booking statuses. */
 enum class BookingStatus(val thai: String) {
     PENDING("รออนุมัติ"),
     APPROVED("อนุมัติแล้ว"),
     REJECTED("ถูกปฏิเสธ"),
-    CANCELLED("ยกเลิกแล้ว");
+    CANCELLED("ยกเลิกแล้ว"),
+    NO_SHOW("ไม่มาใช้ห้อง");
 
     val isActive: Boolean get() = this == PENDING || this == APPROVED
 
@@ -97,7 +98,75 @@ data class Booking(
     val canCancel: Boolean,
     val canDecide: Boolean,
     val logs: List<StatusLog> = emptyList(),
+    val checkedInAt: OffsetDateTime? = null,
+    val checkedInByStaff: Boolean = false,
+    val checkinOpensAt: OffsetDateTime? = null,
+    val checkinDeadline: OffsetDateTime? = null,
+    val canCheckIn: Boolean = false,
+    val canStaffCheckIn: Boolean = false,
 )
+
+/**
+ * Worked out from the times rather than the server's can_check_in, because a booking cached earlier
+ * still has the answer from when it was fetched.
+ */
+fun Booking.isCheckInOpen(now: OffsetDateTime = OffsetDateTime.now()): Boolean {
+    val opens = checkinOpensAt ?: return false
+    val deadline = checkinDeadline ?: return false
+    return !now.isBefore(opens) && !now.isAfter(deadline)
+}
+
+enum class WaitlistStatus(val thai: String) {
+    WAITING("กำลังรอคิว"),
+    PROMOTED("ได้ห้องแล้ว"),
+    CANCELLED("ออกจากคิวแล้ว"),
+    EXPIRED("หมดเวลา"),
+}
+
+data class WaitlistEntry(
+    val id: Long,
+    val roomCode: String,
+    val roomName: String,
+    val building: String,
+    val start: OffsetDateTime,
+    val end: OffsetDateTime,
+    val status: WaitlistStatus,
+    val position: Int?,
+    val bookingId: Long?,
+)
+
+data class RoomCheckInCode(val roomCode: String, val roomName: String, val code: String)
+
+data class MonthlyReport(
+    val totalRequests: Int,
+    val approved: Int,
+    val pending: Int,
+    val rejected: Int,
+    val cancelled: Int,
+    val checkedIn: Int,
+    val noShows: Int,
+    val attendanceRatePercent: Double?,
+    val bookedHours: Double,
+    val usedHours: Double,
+    val rooms: List<ReportRoom>,
+    val noShowUsers: List<ReportNoShowUser>,
+    val waitlist: ReportWaitlist,
+)
+
+data class ReportRoom(
+    val roomCode: String,
+    val roomName: String,
+    val approved: Int,
+    val checkedIn: Int,
+    val noShows: Int,
+    val bookedHours: Double,
+    val usedHours: Double,
+    val utilizationPercent: Double,
+)
+
+data class ReportNoShowUser(val userId: Long, val fullName: String, val email: String, val noShows: Int)
+
+data class ReportWaitlist(val joined: Int, val waiting: Int, val promoted: Int, val cancelled: Int, val expired: Int)
 
 data class Closure(val id: Long, val roomId: Long, val start: OffsetDateTime, val end: OffsetDateTime, val reason: String)
 
