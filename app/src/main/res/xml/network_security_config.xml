@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Allows plain HTTP only to the local development server.
+     10.0.2.2 = the computer running the Android Emulator.
+     For a real phone on Wi-Fi, add your computer's LAN IP here as well. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

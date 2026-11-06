@@ -1,0 +1,17 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+build/
+
+# Local machine settings (contains the SDK path)
+local.properties
+
+# Android Studio
+.idea/
+*.iml
+
+# Build outputs and OS files
+*.apk
+*.aab
+.DS_Store
+Thumbs.db
