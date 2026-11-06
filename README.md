@@ -1,8 +1,14 @@
 # Smart Room Booking
 
-แอป Android สำหรับค้นหา จอง และอนุมัติการใช้ห้องในมหาวิทยาลัย พัฒนาด้วย Kotlin และ Jetpack Compose
+ระบบค้นหา จอง และอนุมัติการใช้ห้องในมหาวิทยาลัย ประกอบด้วยแอป Android ที่พัฒนาด้วย Kotlin และ Jetpack Compose กับ REST API ที่พัฒนาด้วย FastAPI และ PostgreSQL
 
-> **หมายเหตุ:** repo นี้มีเฉพาะแอป Android แอปต้องเชื่อมต่อกับ REST API ซึ่งไม่ได้อยู่ใน repo นี้ จึงต้องมีเซิร์ฟเวอร์ที่ทำงานอยู่ก่อนจึงจะเข้าสู่ระบบและใช้งานได้
+ฐานข้อมูลปฏิเสธการจองห้องเดียวกันในช่วงเวลาที่ทับกัน จึงป้องกันการจองซ้อนได้แม้มีผู้ใช้หลายคนกดจองพร้อมกัน
+
+```text
+smart-room-booking/
+├── app/       แอป Android
+└── backend/   REST API และฐานข้อมูล
+```
 
 ## ความสามารถ
 
@@ -30,31 +36,78 @@
 | งานเบื้องหลัง | Kotlin Coroutines, WorkManager 2.10 |
 | การนำทาง | Navigation Compose |
 | เก็บข้อมูลเซสชัน | DataStore Preferences |
+| REST API | Python, FastAPI, Uvicorn |
+| ฐานข้อมูลฝั่งเซิร์ฟเวอร์ | PostgreSQL 16 |
+| การยืนยันตัวตน | JWT, bcrypt |
 
-รองรับ Android 8.0 ขึ้นไป (`minSdk 26`, `targetSdk 35`)
+แอปรองรับ Android 8.0 ขึ้นไป (`minSdk 26`, `targetSdk 35`)
 
 ## การติดตั้งและรัน
 
-### สิ่งที่ต้องมี
+```bash
+git clone https://github.com/nphaungy/smart-room-booking.git
+cd smart-room-booking
+```
+
+### 1. เปิด Backend
+
+#### วิธี A: ใช้ Docker (แนะนำ)
+
+ต้องมี Docker และพอร์ต `5432` กับ `8000` ต้องว่าง
+
+```bash
+cd backend
+docker compose up --build
+```
+
+คำสั่งนี้เปิด PostgreSQL สร้างตาราง ใส่ข้อมูลตัวอย่าง และเปิด API ให้อัตโนมัติ
+
+#### วิธี B: ใช้ Python และ PostgreSQL ในเครื่อง
+
+ต้องมี Python และ PostgreSQL 16 จากนั้นสร้างฐานข้อมูลชื่อ `roombooking` แล้วรัน
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Windows PowerShell: $env:DATABASE_URL="postgresql://postgres:<รหัสผ่าน>@localhost:5432/roombooking"
+export DATABASE_URL="postgresql://postgres:<รหัสผ่าน>@localhost:5432/roombooking"
+
+python -m app.seed           # สร้างตารางและใส่ข้อมูลตัวอย่าง
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+เมื่อ API ทำงานแล้ว เปิด <http://localhost:8000/docs> เพื่อดูและทดลองเรียก API ผ่าน Swagger UI
+
+### 2. บัญชีสำหรับทดสอบ
+
+ข้อมูลตัวอย่างสร้างบัญชีเหล่านี้ให้
+
+| บทบาท | อีเมล | รหัสผ่าน |
+|---|---|---|
+| ผู้ดูแลระบบ | `admin@example.com` | `Admin1234` |
+| ผู้อนุมัติ | `approver@example.com` | `Approver1234` |
+| ผู้จอง | `student1@example.com` | `Student1234` |
+| ผู้จอง | `student2@example.com` | `Student1234` |
+
+> **คำเตือน:** บัญชีเหล่านี้ใช้สำหรับทดสอบในเครื่องเท่านั้น ห้ามรันข้อมูลตัวอย่างบนเซิร์ฟเวอร์จริง
+
+### 3. รันแอป Android
+
+ต้องมีเครื่องมือต่อไปนี้
 
 - Android Studio รุ่นที่รองรับ Android Gradle Plugin 8.13
 - Android SDK 35
 - JDK 17 ขึ้นไป (ใช้ JDK ที่มากับ Android Studio ได้)
-- REST API ที่เปิดอยู่ที่พอร์ต `8000`
 
-### รันบน Emulator
+#### รันบน Emulator
 
-1. Clone โปรเจกต์แล้วเปิดโฟลเดอร์ด้วย Android Studio
+1. เปิดโฟลเดอร์ `smart-room-booking` ด้วย Android Studio แล้วรอ Gradle Sync ให้เสร็จ
+2. กด **Run** แอปจะเชื่อมต่อไปที่ `http://10.0.2.2:8000/api/` ซึ่งหมายถึง `localhost` ของคอมพิวเตอร์
 
-   ```bash
-   git clone https://github.com/nphaungy/smart-room-booking.git
-   ```
-
-2. รอ Gradle Sync ให้เสร็จ
-3. เปิด REST API บนคอมพิวเตอร์เครื่องเดียวกัน
-4. กด **Run** แอปจะเชื่อมต่อไปที่ `http://10.0.2.2:8000/api/` ซึ่งหมายถึง `localhost` ของคอมพิวเตอร์
-
-### รันบนมือถือจริง
+#### รันบนมือถือจริง
 
 ให้มือถือและคอมพิวเตอร์อยู่ใน Wi-Fi เดียวกัน แล้วแก้ 2 จุดเป็น IP ของคอมพิวเตอร์ เช่น `192.168.1.50`
 
@@ -70,7 +123,9 @@
    <domain includeSubdomains="false">192.168.1.50</domain>
    ```
 
-### Build และทดสอบจาก command line
+## การทดสอบ
+
+### แอป Android
 
 ```bash
 ./gradlew :app:assembleDebug       # สร้าง APK
@@ -78,6 +133,22 @@
 ```
 
 บน Windows ให้ใช้ `gradlew.bat` แทน `./gradlew`
+
+### Backend
+
+> **คำเตือน:** ชุดทดสอบจะลบข้อมูลทั้งหมดในฐานข้อมูลที่ `DATABASE_URL` ชี้อยู่ทุกครั้งที่รัน จึงต้องใช้ฐานข้อมูลแยกสำหรับทดสอบ ห้ามชี้ไปที่ `roombooking`
+
+ถ้าเปิดฐานข้อมูลด้วย Docker อยู่แล้ว ให้ติดตั้ง dependencies ตามวิธี B แล้วรัน
+
+```bash
+cd backend
+docker compose exec db createdb -U postgres roombooking_test
+
+# Windows PowerShell: $env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/roombooking_test"
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/roombooking_test"
+
+pytest -v
+```
 
 ## โครงสร้างโปรเจกต์
 
@@ -94,12 +165,32 @@ app/src/main/java/com/example/roombooking/
     ├── navigation/     เส้นทางระหว่างหน้าจอ
     ├── theme/          สีและฟอนต์
     └── ...             หน้าจอแยกตามฟีเจอร์
+
+backend/
+├── app/
+│   ├── routers/        เส้นทาง API
+│   ├── services/       ตรรกะการจอง สถิติ และการแจ้งเตือน
+│   ├── config.py       ค่าตั้งค่าและกติกาการจอง
+│   ├── schema.sql      โครงสร้างฐานข้อมูล
+│   └── seed.py         ข้อมูลตัวอย่าง
+├── tests/              ชุดทดสอบ
+├── docker-compose.yml
+└── openapi.json        รายละเอียด API
 ```
+
+## การนำไปใช้งานจริง
+
+ค่าใน repo นี้เหมาะสำหรับพัฒนาในเครื่องเท่านั้น ก่อนนำไปใช้จริงต้องทำอย่างน้อยดังนี้
+
+- ตั้ง `JWT_SECRET` เป็นค่าสุ่มที่ยาวและเก็บเป็นความลับ ไม่เช่นนั้นคนอื่นอาจปลอม token เข้าระบบได้
+- เปลี่ยนรหัสผ่านฐานข้อมูลใน `DATABASE_URL`
+- ไม่รัน `app.seed` เพราะจะสร้างบัญชีสาธิตที่มีรหัสผ่านเปิดเผย
+- เปลี่ยน `BASE_URL` ของแอปเป็นที่อยู่จริงแบบ HTTPS
 
 ## ข้อจำกัด
 
 - การแจ้งเตือนดึงข้อมูลจากเซิร์ฟเวอร์ทุก 15 นาที และทุกครั้งที่เปิดแอป จึงไม่ใช่การแจ้งเตือนแบบทันที
-- กติกาการจอง ได้แก่ ช่วงละ 30 นาที, เปิด 08:00–20:00 น. และจองล่วงหน้าได้ไม่เกิน 30 วัน อยู่ใน `domain/BookingRules.kt` ถ้าเซิร์ฟเวอร์เปลี่ยนกติกา ต้องแก้ไฟล์นี้ให้ตรงกันด้วย
+- กติกาการจอง ได้แก่ ช่วงละ 30 นาที, เปิด 08:00–20:00 น. และจองล่วงหน้าได้ไม่เกิน 30 วัน ถูกกำหนดไว้ทั้งใน `backend/app/config.py` และ `app/src/main/java/com/example/roombooking/domain/BookingRules.kt` ถ้าเปลี่ยนกติกา ต้องแก้ทั้งสองไฟล์ให้ตรงกัน
 
 ## ฟอนต์
 
