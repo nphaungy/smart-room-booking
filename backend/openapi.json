@@ -490,7 +490,8 @@
                     "PENDING",
                     "APPROVED",
                     "REJECTED",
-                    "CANCELLED"
+                    "CANCELLED",
+                    "NO_SHOW"
                   ],
                   "type": "string"
                 },
@@ -604,7 +605,8 @@
                     "PENDING",
                     "APPROVED",
                     "REJECTED",
-                    "CANCELLED"
+                    "CANCELLED",
+                    "NO_SHOW"
                   ],
                   "type": "string"
                 },
@@ -908,6 +910,363 @@
                 "schema": {
                   "$ref": "#/components/schemas/BookingOut"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{booking_id}/check-in": {
+      "post": {
+        "tags": [
+          "Bookings (RB05-RB07, RB09)"
+        ],
+        "summary": "Check In",
+        "description": "The booker scans the QR on the room's door (or types the code printed under it).",
+        "operationId": "check_in_api_bookings__booking_id__check_in_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{booking_id}/staff-check-in": {
+      "post": {
+        "tags": [
+          "Bookings (RB05-RB07, RB09)"
+        ],
+        "summary": "Staff Check In",
+        "description": "Staff confirm the booker came, e.g. no phone at the door or a no-show recorded by mistake.",
+        "operationId": "staff_check_in_api_bookings__booking_id__staff_check_in_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffCheckInIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/waitlist": {
+      "post": {
+        "tags": [
+          "Waitlist"
+        ],
+        "summary": "Join",
+        "operationId": "join_api_waitlist_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistEntryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/waitlist/me": {
+      "get": {
+        "tags": [
+          "Waitlist"
+        ],
+        "summary": "Mine",
+        "operationId": "mine_api_waitlist_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WaitlistEntryOut"
+                  },
+                  "type": "array",
+                  "title": "Response Mine Api Waitlist Me Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/waitlist/{entry_id}/cancel": {
+      "post": {
+        "tags": [
+          "Waitlist"
+        ],
+        "summary": "Cancel",
+        "operationId": "cancel_api_waitlist__entry_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistEntryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/monthly": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Monthly",
+        "operationId": "monthly_api_reports_monthly_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyReportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/monthly.csv": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Monthly Csv",
+        "operationId": "monthly_csv_api_reports_monthly_csv_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -1234,6 +1593,101 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RoomOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/rooms/{room_id}/checkin-code": {
+      "get": {
+        "tags": [
+          "Admin (RB10)"
+        ],
+        "summary": "Checkin Code",
+        "operationId": "checkin_code_api_admin_rooms__room_id__checkin_code_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomCheckInCodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/rooms/{room_id}/checkin-code/rotate": {
+      "post": {
+        "tags": [
+          "Admin (RB10)"
+        ],
+        "summary": "Rotate Checkin Code",
+        "description": "Issue a new code, e.g. after a photo of the QR leaks. The old poster stops working.",
+        "operationId": "rotate_checkin_code_api_admin_rooms__room_id__checkin_code_rotate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomCheckInCodeOut"
                 }
               }
             }
@@ -1779,7 +2233,8 @@
               "PENDING",
               "APPROVED",
               "REJECTED",
-              "CANCELLED"
+              "CANCELLED",
+              "NO_SHOW"
             ],
             "title": "Status"
           },
@@ -1833,6 +2288,67 @@
           "can_decide": {
             "type": "boolean",
             "title": "Can Decide",
+            "default": false
+          },
+          "checked_in_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked In At"
+          },
+          "checkin_method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "SELF",
+                  "STAFF"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Method"
+          },
+          "checkin_opens_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Opens At"
+          },
+          "checkin_deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Deadline"
+          },
+          "can_check_in": {
+            "type": "boolean",
+            "title": "Can Check In",
+            "default": false
+          },
+          "can_staff_check_in": {
+            "type": "boolean",
+            "title": "Can Staff Check In",
             "default": false
           },
           "logs": {
@@ -1978,7 +2494,8 @@
               "PENDING",
               "APPROVED",
               "REJECTED",
-              "CANCELLED"
+              "CANCELLED",
+              "NO_SHOW"
             ],
             "title": "Status"
           },
@@ -2032,6 +2549,67 @@
           "can_decide": {
             "type": "boolean",
             "title": "Can Decide",
+            "default": false
+          },
+          "checked_in_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked In At"
+          },
+          "checkin_method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "SELF",
+                  "STAFF"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Method"
+          },
+          "checkin_opens_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Opens At"
+          },
+          "checkin_deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Deadline"
+          },
+          "can_check_in": {
+            "type": "boolean",
+            "title": "Can Check In",
+            "default": false
+          },
+          "can_staff_check_in": {
+            "type": "boolean",
+            "title": "Can Staff Check In",
             "default": false
           }
         },
@@ -2132,7 +2710,8 @@
                   "PENDING",
                   "APPROVED",
                   "REJECTED",
-                  "CANCELLED"
+                  "CANCELLED",
+                  "NO_SHOW"
                 ]
               },
               {
@@ -2188,6 +2767,21 @@
         },
         "type": "object",
         "title": "CancelIn"
+      },
+      "CheckInIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "CheckInIn"
       },
       "ClosureIn": {
         "properties": {
@@ -2403,6 +2997,48 @@
         ],
         "title": "LoginIn"
       },
+      "MonthlyReportOut": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ReportSummary"
+          },
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRoom"
+            },
+            "type": "array",
+            "title": "Rooms"
+          },
+          "no_show_users": {
+            "items": {
+              "$ref": "#/components/schemas/ReportNoShowUser"
+            },
+            "type": "array",
+            "title": "No Show Users"
+          },
+          "waitlist": {
+            "$ref": "#/components/schemas/ReportWaitlist"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "summary",
+          "rooms",
+          "no_show_users",
+          "waitlist"
+        ],
+        "title": "MonthlyReportOut"
+      },
       "NameIn": {
         "properties": {
           "name": {
@@ -2524,6 +3160,196 @@
         ],
         "title": "RejectIn"
       },
+      "ReportNoShowUser": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "faculty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faculty"
+          },
+          "no_shows": {
+            "type": "integer",
+            "title": "No Shows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "full_name",
+          "email",
+          "no_shows"
+        ],
+        "title": "ReportNoShowUser"
+      },
+      "ReportRoom": {
+        "properties": {
+          "room_id": {
+            "type": "integer",
+            "title": "Room Id"
+          },
+          "room_code": {
+            "type": "string",
+            "title": "Room Code"
+          },
+          "room_name": {
+            "type": "string",
+            "title": "Room Name"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "checked_in": {
+            "type": "integer",
+            "title": "Checked In"
+          },
+          "no_shows": {
+            "type": "integer",
+            "title": "No Shows"
+          },
+          "booked_hours": {
+            "type": "number",
+            "title": "Booked Hours"
+          },
+          "used_hours": {
+            "type": "number",
+            "title": "Used Hours"
+          },
+          "utilization_percent": {
+            "type": "number",
+            "title": "Utilization Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "room_id",
+          "room_code",
+          "room_name",
+          "approved",
+          "checked_in",
+          "no_shows",
+          "booked_hours",
+          "used_hours",
+          "utilization_percent"
+        ],
+        "title": "ReportRoom"
+      },
+      "ReportSummary": {
+        "properties": {
+          "total_requests": {
+            "type": "integer",
+            "title": "Total Requests"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "cancelled": {
+            "type": "integer",
+            "title": "Cancelled"
+          },
+          "checked_in": {
+            "type": "integer",
+            "title": "Checked In"
+          },
+          "no_shows": {
+            "type": "integer",
+            "title": "No Shows"
+          },
+          "attendance_rate_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendance Rate Percent"
+          },
+          "booked_hours": {
+            "type": "number",
+            "title": "Booked Hours"
+          },
+          "used_hours": {
+            "type": "number",
+            "title": "Used Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_requests",
+          "approved",
+          "pending",
+          "rejected",
+          "cancelled",
+          "checked_in",
+          "no_shows",
+          "attendance_rate_percent",
+          "booked_hours",
+          "used_hours"
+        ],
+        "title": "ReportSummary"
+      },
+      "ReportWaitlist": {
+        "properties": {
+          "joined": {
+            "type": "integer",
+            "title": "Joined"
+          },
+          "waiting": {
+            "type": "integer",
+            "title": "Waiting"
+          },
+          "promoted": {
+            "type": "integer",
+            "title": "Promoted"
+          },
+          "cancelled": {
+            "type": "integer",
+            "title": "Cancelled"
+          },
+          "expired": {
+            "type": "integer",
+            "title": "Expired"
+          }
+        },
+        "type": "object",
+        "required": [
+          "joined",
+          "waiting",
+          "promoted",
+          "cancelled",
+          "expired"
+        ],
+        "title": "ReportWaitlist"
+      },
       "RoleUpdateIn": {
         "properties": {
           "role": {
@@ -2541,6 +3367,34 @@
           "role"
         ],
         "title": "RoleUpdateIn"
+      },
+      "RoomCheckInCodeOut": {
+        "properties": {
+          "room_id": {
+            "type": "integer",
+            "title": "Room Id"
+          },
+          "room_code": {
+            "type": "string",
+            "title": "Room Code"
+          },
+          "room_name": {
+            "type": "string",
+            "title": "Room Name"
+          },
+          "checkin_code": {
+            "type": "string",
+            "title": "Checkin Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "room_id",
+          "room_code",
+          "room_name",
+          "checkin_code"
+        ],
+        "title": "RoomCheckInCodeOut"
       },
       "RoomEquipmentIn": {
         "properties": {
@@ -2862,6 +3716,21 @@
         ],
         "title": "ScheduleOut"
       },
+      "StaffCheckInIn": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "StaffCheckInIn"
+      },
       "StatusCount": {
         "properties": {
           "status": {
@@ -2870,7 +3739,8 @@
               "PENDING",
               "APPROVED",
               "REJECTED",
-              "CANCELLED"
+              "CANCELLED",
+              "NO_SHOW"
             ],
             "title": "Status"
           },
@@ -2896,7 +3766,8 @@
                   "PENDING",
                   "APPROVED",
                   "REJECTED",
-                  "CANCELLED"
+                  "CANCELLED",
+                  "NO_SHOW"
                 ]
               },
               {
@@ -2911,7 +3782,8 @@
               "PENDING",
               "APPROVED",
               "REJECTED",
-              "CANCELLED"
+              "CANCELLED",
+              "NO_SHOW"
             ],
             "title": "To Status"
           },
@@ -3050,6 +3922,100 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WaitlistEntryOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "room_id": {
+            "type": "integer",
+            "title": "Room Id"
+          },
+          "room_code": {
+            "type": "string",
+            "title": "Room Code"
+          },
+          "room_name": {
+            "type": "string",
+            "title": "Room Name"
+          },
+          "building": {
+            "type": "string",
+            "title": "Building"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time"
+          },
+          "attendees": {
+            "type": "integer",
+            "title": "Attendees"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "WAITING",
+              "PROMOTED",
+              "CANCELLED",
+              "EXPIRED"
+            ],
+            "title": "Status"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "booking_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "room_id",
+          "room_code",
+          "room_name",
+          "building",
+          "start_time",
+          "end_time",
+          "attendees",
+          "purpose",
+          "status",
+          "created_at"
+        ],
+        "title": "WaitlistEntryOut"
       }
     },
     "securitySchemes": {

@@ -7,6 +7,7 @@ os.environ.setdefault(
     "DATABASE_URL", "postgresql://postgres@/roombooking_test?host=/var/tmp/pgrb&port=5433"
 )
 TEST_DB = os.environ["DATABASE_URL"]
+os.environ["SWEEP_INTERVAL_SECONDS"] = "0"  # tests run the sweep themselves, so timing stays deterministic
 
 import psycopg  # noqa: E402
 import pytest  # noqa: E402
@@ -34,7 +35,7 @@ def database():
 @pytest.fixture(autouse=True)
 def clean_bookings(database):
     with psycopg.connect(TEST_DB, autocommit=True) as conn:
-        conn.execute("TRUNCATE bookings, booking_status_logs, notifications, room_closures RESTART IDENTITY CASCADE")
+        conn.execute("TRUNCATE bookings, booking_status_logs, notifications, room_closures, waitlist_entries RESTART IDENTITY CASCADE")
         conn.execute("UPDATE rooms SET status = 'ACTIVE'")
     yield
 

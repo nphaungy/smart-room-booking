@@ -4,7 +4,8 @@ from typing import Literal
 from pydantic import BaseModel, EmailStr, Field
 
 Role = Literal["BOOKER", "APPROVER", "ADMIN"]
-BookingStatus = Literal["PENDING", "APPROVED", "REJECTED", "CANCELLED"]
+BookingStatus = Literal["PENDING", "APPROVED", "REJECTED", "CANCELLED", "NO_SHOW"]
+WaitlistStatus = Literal["WAITING", "PROMOTED", "CANCELLED", "EXPIRED"]
 
 
 # ---------------------------------------------------------------- auth
@@ -153,6 +154,21 @@ class CancelIn(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class CheckInIn(BaseModel):
+    code: str = Field(min_length=1, max_length=200)
+
+
+class StaffCheckInIn(BaseModel):
+    note: str = Field(min_length=1, max_length=500)
+
+
+class RoomCheckInCodeOut(BaseModel):
+    room_id: int
+    room_code: str
+    room_name: str
+    checkin_code: str
+
+
 class StatusLogOut(BaseModel):
     from_status: BookingStatus | None
     to_status: BookingStatus
@@ -184,6 +200,12 @@ class BookingOut(BaseModel):
     can_edit: bool = False
     can_cancel: bool = False
     can_decide: bool = False
+    checked_in_at: datetime | None = None
+    checkin_method: Literal["SELF", "STAFF"] | None = None
+    checkin_opens_at: datetime | None = None
+    checkin_deadline: datetime | None = None
+    can_check_in: bool = False
+    can_staff_check_in: bool = False
 
 
 class BookingDetailOut(BookingOut):
@@ -229,3 +251,71 @@ class DashboardOut(BaseModel):
     approval_rate_percent: float | None
     rooms: list[RoomUsage]
     by_hour: list[HourCount]
+
+
+# ---------------------------------------------------------------- waitlist
+class WaitlistEntryOut(BaseModel):
+    id: int
+    room_id: int
+    room_code: str
+    room_name: str
+    building: str
+    start_time: datetime
+    end_time: datetime
+    attendees: int
+    purpose: str
+    status: WaitlistStatus
+    position: int | None = None  # place in the queue; only while WAITING
+    booking_id: int | None = None
+    created_at: datetime
+
+
+# ---------------------------------------------------------------- monthly report
+class ReportSummary(BaseModel):
+    total_requests: int
+    approved: int
+    pending: int
+    rejected: int
+    cancelled: int
+    checked_in: int
+    no_shows: int
+    attendance_rate_percent: float | None
+    booked_hours: float
+    used_hours: float
+
+
+class ReportRoom(BaseModel):
+    room_id: int
+    room_code: str
+    room_name: str
+    approved: int
+    checked_in: int
+    no_shows: int
+    booked_hours: float
+    used_hours: float
+    utilization_percent: float
+
+
+class ReportNoShowUser(BaseModel):
+    user_id: int
+    full_name: str
+    email: str
+    faculty: str | None = None
+    no_shows: int
+
+
+class ReportWaitlist(BaseModel):
+    joined: int
+    waiting: int
+    promoted: int
+    cancelled: int
+    expired: int
+
+
+class MonthlyReportOut(BaseModel):
+    year: int
+    month: int
+    summary: ReportSummary
+    rooms: list[ReportRoom]
+    no_show_users: list[ReportNoShowUser]
+    waitlist: ReportWaitlist

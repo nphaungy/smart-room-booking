@@ -128,3 +128,58 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, id DESC);
+
+-- ---------------------------------------------------------------------
+-- QR check-in and no-shows. Written as ALTERs so an existing database upgrades on the next start.
+-- ---------------------------------------------------------------------
+-- The code inside the QR poster on each room's door. Rotating it invalidates old posters.
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS checkin_code TEXT NOT NULL
+    DEFAULT upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10));
+
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checked_in_by BIGINT REFERENCES users(id);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_method TEXT
+    CHECK (checkin_method IN ('SELF', 'STAFF'));
+
+-- Past bookings predate check-in, so they must not all be recorded as no-shows on upgrade.
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = current_schema() AND table_name = 'bookings'
+                     AND column_name = 'checkin_required') THEN
+        ALTER TABLE bookings ADD COLUMN checkin_required BOOLEAN NOT NULL DEFAULT true;
+        UPDATE bookings SET checkin_required = false WHERE start_time <= now();
+    END IF;
+END $$;
+
+-- changed_by is NULL when the system made the change (an automatic no-show).
+ALTER TABLE booking_status_logs ALTER COLUMN changed_by DROP NOT NULL;
+
+-- ---------------------------------------------------------------------
+-- Waitlist: when the requested time frees up, the oldest fitting entry becomes a PENDING booking.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS waitlist_entries (
+    id         BIGSERIAL PRIMARY KEY,
+    room_id    BIGINT      NOT NULL REFERENCES rooms(id),
+    user_id    BIGINT      NOT NULL REFERENCES users(id),
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time   TIMESTAMPTZ NOT NULL,
+    attendees  INT         NOT NULL CHECK (attendees > 0),
+    purpose    TEXT        NOT NULL CHECK (length(trim(purpose)) > 0),
+    status     TEXT        NOT NULL DEFAULT 'WAITING'
+               CHECK (status IN ('WAITING', 'PROMOTED', 'CANCELLED', 'EXPIRED')),
+    booking_id BIGINT      REFERENCES bookings(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT waitlist_time_order CHECK (start_time < end_time),
+
+    -- One user can't queue twice for overlapping times in the same room.
+    CONSTRAINT no_duplicate_waitlist EXCLUDE USING gist (
+        room_id WITH =,
+        user_id WITH =,
+        tstzrange(start_time, end_time, '[)') WITH &&
+    ) WHERE (status = 'WAITING')
+);
+
+CREATE INDEX IF NOT EXISTS idx_waitlist_queue ON waitlist_entries (room_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_waitlist_user ON waitlist_entries (user_id, id DESC);

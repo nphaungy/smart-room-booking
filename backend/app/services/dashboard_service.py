@@ -20,7 +20,8 @@ def dashboard(conn, date_from: date, date_to: date) -> dict:
         (start, end),
     ).fetchall()
     counts = {r["status"]: r["count"] for r in by_status}
-    decided = counts.get("APPROVED", 0) + counts.get("REJECTED", 0)
+    approved = counts.get("APPROVED", 0) + counts.get("NO_SHOW", 0)  # a no-show was still approved
+    decided = approved + counts.get("REJECTED", 0)
 
     rooms = conn.execute(
         """
@@ -56,7 +57,7 @@ def dashboard(conn, date_from: date, date_to: date) -> dict:
         "total_bookings": sum(counts.values()),
         "pending_now": pending_now,
         "by_status": by_status,
-        "approval_rate_percent": round(100 * counts.get("APPROVED", 0) / decided, 2) if decided else None,
+        "approval_rate_percent": round(100 * approved / decided, 2) if decided else None,
         "rooms": rooms,
         "by_hour": by_hour,
     }

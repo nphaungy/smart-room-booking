@@ -6,9 +6,12 @@ from fastapi import APIRouter, Depends, Query
 
 from ..config import get_settings
 from ..db import get_conn
-from ..models import BookingDetailOut, BookingIn, BookingOut, BookingStatus, BookingUpdateIn, CancelIn, RejectIn
+from ..models import (BookingDetailOut, BookingIn, BookingOut, BookingStatus, BookingUpdateIn, CancelIn, CheckInIn,
+                      RejectIn, StaffCheckInIn)
 from ..security import get_current_user, require_roles
 from ..services import booking_service as svc
+from ..services import checkin_service
+from ..services.waitlist_service import promote_quietly
 
 router = APIRouter(tags=["Bookings (RB05-RB07, RB09)"])
 staff = require_roles("APPROVER", "ADMIN")
@@ -68,13 +71,17 @@ def detail(booking_id: int, user: dict = Depends(get_current_user), conn: psycop
 @router.put("/bookings/{booking_id}", response_model=BookingOut)
 def edit(booking_id: int, data: BookingUpdateIn, user: dict = Depends(get_current_user),
          conn: psycopg.Connection = Depends(get_conn)):
-    return svc.update_booking(conn, user, booking_id, data)
+    booking = svc.update_booking(conn, user, booking_id, data)
+    promote_quietly(conn, booking["room_id"])  # the old time may now be free
+    return booking
 
 
 @router.post("/bookings/{booking_id}/cancel", response_model=BookingOut)
 def cancel(booking_id: int, data: CancelIn | None = None, user: dict = Depends(get_current_user),
            conn: psycopg.Connection = Depends(get_conn)):
-    return svc.cancel_booking(conn, user, booking_id, data.note if data else None)
+    booking = svc.cancel_booking(conn, user, booking_id, data.note if data else None)
+    promote_quietly(conn, booking["room_id"])
+    return booking
 
 
 @router.post("/bookings/{booking_id}/approve", response_model=BookingOut)
@@ -85,4 +92,20 @@ def approve(booking_id: int, user: dict = Depends(staff), conn: psycopg.Connecti
 @router.post("/bookings/{booking_id}/reject", response_model=BookingOut)
 def reject(booking_id: int, data: RejectIn, user: dict = Depends(staff),
            conn: psycopg.Connection = Depends(get_conn)):
-    return svc.reject_booking(conn, user, booking_id, data.reason)
+    booking = svc.reject_booking(conn, user, booking_id, data.reason)
+    promote_quietly(conn, booking["room_id"])
+    return booking
+
+
+@router.post("/bookings/{booking_id}/check-in", response_model=BookingOut)
+def check_in(booking_id: int, data: CheckInIn, user: dict = Depends(get_current_user),
+             conn: psycopg.Connection = Depends(get_conn)):
+    """The booker scans the QR on the room's door (or types the code printed under it)."""
+    return checkin_service.check_in(conn, user, booking_id, data.code)
+
+
+@router.post("/bookings/{booking_id}/staff-check-in", response_model=BookingOut)
+def staff_check_in(booking_id: int, data: StaffCheckInIn, user: dict = Depends(staff),
+                   conn: psycopg.Connection = Depends(get_conn)):
+    """Staff confirm the booker came, e.g. no phone at the door or a no-show recorded by mistake."""
+    return checkin_service.staff_check_in(conn, user, booking_id, data.note)

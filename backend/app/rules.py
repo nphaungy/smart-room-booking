@@ -70,6 +70,12 @@ def validate_booking_time(start: datetime, end: datetime) -> tuple[datetime, dat
     return start, end
 
 
+def checkin_window(start_time: datetime) -> tuple[datetime, datetime]:
+    s = get_settings()
+    return (start_time - timedelta(minutes=s.checkin_open_minutes_before),
+            start_time + timedelta(minutes=s.checkin_grace_minutes))
+
+
 def owner_can_cancel(start_time: datetime) -> bool:
     """BR06: the booker may cancel up to N hours before the start time."""
     return now_utc() <= start_time - timedelta(hours=get_settings().cancel_min_hours_before)

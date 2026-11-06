@@ -4,8 +4,10 @@ State machine (RB06):
     PENDING --approve--> APPROVED
     PENDING --reject---> REJECTED   (reason required)
     PENDING/APPROVED --cancel--> CANCELLED
-REJECTED and CANCELLED are final; they release the time slot because the
-exclusion constraint only counts PENDING and APPROVED rows.
+    APPROVED --no check-in by the deadline--> NO_SHOW (see checkin_service)
+    NO_SHOW --staff confirms the booker came--> APPROVED
+REJECTED and CANCELLED are final. They and NO_SHOW release the time slot because
+the exclusion constraint only counts PENDING and APPROVED rows.
 """
 import functools
 
@@ -14,7 +16,7 @@ from psycopg import errors as pg
 
 from ..errors import ApiError
 from ..models import BookingIn, BookingUpdateIn
-from ..rules import fmt_range, now_utc, owner_can_cancel, validate_booking_time
+from ..rules import checkin_window, fmt_range, now_utc, owner_can_cancel, validate_booking_time
 from .notify import approver_ids, notify
 
 BOOKING_SELECT = """
@@ -58,10 +60,20 @@ def decorate(row: dict, viewer: dict) -> dict:
         is_admin or (is_owner and owner_can_cancel(row["start_time"]))
     )
     row["can_decide"] = viewer["role"] in ("APPROVER", "ADMIN") and row["status"] == "PENDING" and future
+
+    opens, closes = checkin_window(row["start_time"])
+    now = now_utc()
+    awaiting = row["status"] == "APPROVED" and row["checkin_required"] and row["checked_in_at"] is None
+    row["checkin_opens_at"] = opens if awaiting else None
+    row["checkin_deadline"] = closes if awaiting else None
+    row["can_check_in"] = is_owner and awaiting and opens <= now <= closes
+    row["can_staff_check_in"] = viewer["role"] in ("APPROVER", "ADMIN") and (
+        row["status"] == "NO_SHOW" or (awaiting and opens <= now)
+    )
     return row
 
 
-def _log(conn, booking_id: int, from_s: str | None, to_s: str, by: int, note: str | None = None) -> None:
+def _log(conn, booking_id: int, from_s: str | None, to_s: str, by: int | None, note: str | None = None) -> None:
     conn.execute(
         "INSERT INTO booking_status_logs (booking_id, from_status, to_status, changed_by, note) "
         "VALUES (%s, %s, %s, %s, %s)",
@@ -112,8 +124,9 @@ def get_booking(conn, booking_id: int, viewer: dict, with_logs: bool = False) ->
     row = decorate(row, viewer)
     if with_logs:
         row["logs"] = conn.execute(
-            "SELECT l.from_status, l.to_status, u.full_name AS changed_by_name, l.changed_at, l.note "
-            "FROM booking_status_logs l JOIN users u ON u.id = l.changed_by "
+            "SELECT l.from_status, l.to_status, COALESCE(u.full_name, 'ระบบ') AS changed_by_name, "
+            "l.changed_at, l.note "
+            "FROM booking_status_logs l LEFT JOIN users u ON u.id = l.changed_by "
             "WHERE l.booking_id = %s ORDER BY l.id",
             (booking_id,),
         ).fetchall()

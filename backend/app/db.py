@@ -54,3 +54,5 @@ def apply_schema(conninfo: str | None = None) -> None:
     sql = (Path(__file__).parent / "schema.sql").read_text(encoding="utf-8")
     with psycopg.connect(conninfo or get_settings().database_url, autocommit=True) as conn:
         conn.execute(sql)
+        # Runs on its own because a new enum value can't be used in the transaction that adds it.
+        conn.execute("ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'NO_SHOW'")

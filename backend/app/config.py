@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     max_advance_days: int = 30       # BR08: book at most 30 days ahead
     cancel_min_hours_before: int = 1  # BR06: owner may cancel up to 1 hour before start
 
+    # ---- Check-in, no-show and waitlist policy ----
+    checkin_open_minutes_before: int = 15  # the QR can be scanned from 15 minutes before the start ...
+    checkin_grace_minutes: int = 15        # ... until 15 minutes after it; later counts as a no-show
+    sweep_interval_seconds: int = 60       # how often no-shows and the waitlist are processed; 0 = off
+
     @property
     def tz(self) -> ZoneInfo:
         return ZoneInfo(self.timezone)

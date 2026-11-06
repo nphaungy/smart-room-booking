@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, Query, Response
 
 from ..db import get_conn
 from ..errors import ApiError
-from ..models import (ClosureIn, ClosureOut, EquipmentOut, NameIn, RoleUpdateIn, RoomIn, RoomOut,
+from ..models import (ClosureIn, ClosureOut, EquipmentOut, NameIn, RoleUpdateIn, RoomCheckInCodeOut, RoomIn, RoomOut,
                       RoomTypeOut, UserOut)
 from ..security import require_roles
-from ..services import room_service
+from ..services import checkin_service, room_service
 
 router = APIRouter(prefix="/admin", tags=["Admin (RB10)"])
 admin = require_roles("ADMIN")
@@ -30,6 +30,17 @@ def update_room(room_id: int, data: RoomIn, user: dict = Depends(admin),
     """Set status=INACTIVE to take a room out of service (rooms are never hard-deleted,
     because past bookings still reference them)."""
     return room_service.update_room(conn, room_id, data)
+
+
+@router.get("/rooms/{room_id}/checkin-code", response_model=RoomCheckInCodeOut)
+def checkin_code(room_id: int, user: dict = Depends(admin), conn: psycopg.Connection = Depends(get_conn)):
+    return checkin_service.room_code(conn, room_id)
+
+
+@router.post("/rooms/{room_id}/checkin-code/rotate", response_model=RoomCheckInCodeOut)
+def rotate_checkin_code(room_id: int, user: dict = Depends(admin), conn: psycopg.Connection = Depends(get_conn)):
+    """Issue a new code, e.g. after a photo of the QR leaks. The old poster stops working."""
+    return checkin_service.rotate_room_code(conn, room_id)
 
 
 @router.get("/rooms/{room_id}/closures", response_model=list[ClosureOut])
