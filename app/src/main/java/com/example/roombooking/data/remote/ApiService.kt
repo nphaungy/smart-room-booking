@@ -77,8 +77,9 @@ interface ApiService {
     @POST("bookings/{id}/reject")
     suspend fun rejectBooking(@Path("id") id: Long, @Body body: RejectRequest): BookingDto
 
-    @POST("bookings/{id}/check-in")
-    suspend fun checkIn(@Path("id") id: Long, @Body body: CheckInRequest): BookingDto
+    /** Staff scan the QR e-ticket that the booker shows at the room. */
+    @POST("checkin/scan")
+    suspend fun scanTicket(@Body body: TicketScanRequest): BookingDto
 
     @POST("bookings/{id}/staff-check-in")
     suspend fun staffCheckIn(@Path("id") id: Long, @Body body: StaffCheckInRequest): BookingDto
@@ -123,12 +124,6 @@ interface ApiService {
 
     @PUT("admin/rooms/{id}")
     suspend fun updateRoom(@Path("id") id: Long, @Body body: RoomRequest): RoomDto
-
-    @GET("admin/rooms/{id}/checkin-code")
-    suspend fun roomCheckInCode(@Path("id") roomId: Long): RoomCheckInCodeDto
-
-    @POST("admin/rooms/{id}/checkin-code/rotate")
-    suspend fun rotateRoomCheckInCode(@Path("id") roomId: Long): RoomCheckInCodeDto
 
     @GET("admin/rooms/{id}/closures")
     suspend fun closures(@Path("id") roomId: Long): List<ClosureDto>

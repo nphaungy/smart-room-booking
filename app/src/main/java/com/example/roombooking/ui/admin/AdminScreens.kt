@@ -109,7 +109,6 @@ class AdminViewModel(private val repo: AdminRepository) : ViewModel() {
 fun AdminScreen(
     onEditRoom: (Long?) -> Unit,
     onClosures: (Long) -> Unit,
-    onCheckInQr: (Long) -> Unit,
     topActions: @Composable () -> Unit,
     vm: AdminViewModel = viewModel(factory = AdminViewModel.Factory),
 ) {
@@ -141,7 +140,6 @@ fun AdminScreen(
                                 RoomCard(room) { onEditRoom(room.id) }
                                 Row {
                                     TextButton(onClick = { onClosures(room.id) }) { Text("จัดการช่วงปิดปรับปรุง") }
-                                    TextButton(onClick = { onCheckInQr(room.id) }) { Text("QR เช็กอิน") }
                                 }
                             }
                         }

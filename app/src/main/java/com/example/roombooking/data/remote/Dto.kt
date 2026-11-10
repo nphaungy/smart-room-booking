@@ -162,7 +162,8 @@ data class BookingDto(
     @SerializedName("checkin_method") val checkinMethod: String?,
     @SerializedName("checkin_opens_at") val checkinOpensAt: String?,
     @SerializedName("checkin_deadline") val checkinDeadline: String?,
-    @SerializedName("can_check_in") val canCheckIn: Boolean,
+    // The booker's e-ticket for check-in. Only the owner of an APPROVED booking receives it.
+    @SerializedName("ticket_code") val ticketCode: String?,
     @SerializedName("can_staff_check_in") val canStaffCheckIn: Boolean,
     val logs: List<StatusLogDto>?, // only present on GET /bookings/{id}
 )
@@ -203,15 +204,9 @@ data class DashboardDto(
 )
 
 // ---------------------------------------------------------------- check-in
-data class CheckInRequest(val code: String)
+data class TicketScanRequest(val code: String)
 
 data class StaffCheckInRequest(val note: String)
-
-data class RoomCheckInCodeDto(
-    @SerializedName("room_code") val roomCode: String,
-    @SerializedName("room_name") val roomName: String,
-    @SerializedName("checkin_code") val checkinCode: String,
-)
 
 // ---------------------------------------------------------------- waitlist
 data class WaitlistEntryDto(

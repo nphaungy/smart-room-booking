@@ -5,7 +5,6 @@ import com.example.roombooking.data.remote.ClosureDto
 import com.example.roombooking.data.remote.DashboardDto
 import com.example.roombooking.data.remote.MonthlyReportDto
 import com.example.roombooking.data.remote.NotificationDto
-import com.example.roombooking.data.remote.RoomCheckInCodeDto
 import com.example.roombooking.data.remote.RoomDto
 import com.example.roombooking.data.remote.ScheduleDto
 import com.example.roombooking.data.remote.UserDto
@@ -32,7 +31,7 @@ fun BookingDto.toDomain() = Booking(
     canEdit = canEdit, canCancel = canCancel, canDecide = canDecide,
     checkedInAt = checkedInAt?.let(::parseTime), checkedInByStaff = checkinMethod == "STAFF",
     checkinOpensAt = checkinOpensAt?.let(::parseTime), checkinDeadline = checkinDeadline?.let(::parseTime),
-    canCheckIn = canCheckIn, canStaffCheckIn = canStaffCheckIn,
+    ticketCode = ticketCode, canStaffCheckIn = canStaffCheckIn,
     logs = logs.orEmpty().map {
         StatusLog(
             from = BookingStatus.from(it.fromStatus),
@@ -48,8 +47,6 @@ fun WaitlistEntryDto.toDomain() = WaitlistEntry(
     status = WaitlistStatus.entries.firstOrNull { it.name == status } ?: WaitlistStatus.EXPIRED,
     position = position, bookingId = bookingId,
 )
-
-fun RoomCheckInCodeDto.toDomain() = RoomCheckInCode(roomCode, roomName, checkinCode)
 
 fun MonthlyReportDto.toDomain() = MonthlyReport(
     totalRequests = summary.totalRequests, approved = summary.approved, pending = summary.pending,

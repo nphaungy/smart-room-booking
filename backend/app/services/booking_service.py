@@ -66,7 +66,8 @@ def decorate(row: dict, viewer: dict) -> dict:
     awaiting = row["status"] == "APPROVED" and row["checkin_required"] and row["checked_in_at"] is None
     row["checkin_opens_at"] = opens if awaiting else None
     row["checkin_deadline"] = closes if awaiting else None
-    row["can_check_in"] = is_owner and awaiting and opens <= now <= closes
+    # The ticket works like a cinema e-ticket: only its owner ever receives it, and only once approved.
+    row["ticket_code"] = row.get("ticket_code") if (is_owner and row["status"] == "APPROVED") else None
     row["can_staff_check_in"] = viewer["role"] in ("APPROVER", "ADMIN") and (
         row["status"] == "NO_SHOW" or (awaiting and opens <= now)
     )
@@ -183,11 +184,23 @@ def update_booking(conn: psycopg.Connection, user: dict, booking_id: int, data: 
 # ------------------------------------------------------------------ RB07 approve / reject
 def _decide(conn, user: dict, booking_id: int, approve: bool, reason: str | None) -> dict:
     with conn.transaction():
+        if approve:
+            # Lock the room before the booking, the same order as an admin closing or editing the
+            # room, so the two can't deadlock and the room can't be closed mid-approval.
+            conn.execute("SELECT id FROM rooms WHERE id = %s FOR SHARE",
+                         (fetch_booking(conn, booking_id)["room_id"],))
         b = fetch_booking(conn, booking_id, for_update=True)  # row lock: two approvers can't both decide
         if b["status"] != "PENDING":
             raise ApiError(409, "INVALID_STATUS", f"รายการนี้อยู่ในสถานะ {b['status']} แล้ว")
         if b["start_time"] <= now_utc():
             raise ApiError(409, "BOOKING_EXPIRED", "เลยเวลาเริ่มใช้ห้องแล้ว ไม่สามารถพิจารณาได้")
+        if approve:
+            # BR03: a request made before the room was deactivated or closed can't be approved
+            # afterwards. Rejecting it is still allowed.
+            room = conn.execute("SELECT status FROM rooms WHERE id = %s FOR SHARE", (b["room_id"],)).fetchone()
+            if room["status"] != "ACTIVE":
+                raise ApiError(409, "ROOM_UNAVAILABLE", "ห้องนี้ปิดใช้งานอยู่ ไม่สามารถอนุมัติได้ กรุณาปฏิเสธคำขอนี้")
+            _check_closure(conn, b["room_id"], b["start_time"], b["end_time"])
         new_status = "APPROVED" if approve else "REJECTED"
         conn.execute(
             "UPDATE bookings SET status = %s, approver_id = %s, reject_reason = %s, decided_at = now(), "
@@ -198,13 +211,15 @@ def _decide(conn, user: dict, booking_id: int, approve: bool, reason: str | None
         room = conn.execute("SELECT code FROM rooms WHERE id = %s", (b["room_id"],)).fetchone()
         when = f"{room['code']} {fmt_range(b['start_time'], b['end_time'])}"
         if approve:
-            notify(conn, [b["booker_id"]], booking_id, "BOOKING_APPROVED", "การจองได้รับอนุมัติ", when)
+            notify(conn, [b["booker_id"]], booking_id, "BOOKING_APPROVED", "การจองได้รับอนุมัติ",
+                   f"{when} เปิดรายการจองเพื่อดู QR เช็กอิน แล้วแสดงให้เจ้าหน้าที่สแกนเมื่อถึงห้อง")
         else:
             notify(conn, [b["booker_id"]], booking_id, "BOOKING_REJECTED", "การจองถูกปฏิเสธ",
                    f"{when} เหตุผล: {reason.strip()}")
     return get_booking(conn, booking_id, user)
 
 
+@retry_on_deadlock
 def approve_booking(conn, user: dict, booking_id: int) -> dict:
     return _decide(conn, user, booking_id, True, None)
 

@@ -110,7 +110,7 @@ fun ScreenScaffold(
                                 Text(title, Modifier.semantics { heading() }, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
                                 if (showSubtitle) {
-                                    Text(subtitle, style = MaterialTheme.typography.labelMedium, color = Brand.Highlight, maxLines = 1)
+                                    Text(subtitle, style = MaterialTheme.typography.labelMedium, color = Brand.OnHeroMuted, maxLines = 1)
                                 }
                             }
                         },
@@ -125,12 +125,12 @@ fun ScreenScaffold(
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Transparent,
                             scrolledContainerColor = Color.Transparent,
-                            titleContentColor = Color.White,
-                            navigationIconContentColor = Color.White,
-                            actionIconContentColor = Color.White,
+                            titleContentColor = Brand.OnHero,
+                            navigationIconContentColor = Brand.OnHero,
+                            actionIconContentColor = Brand.OnHero,
                         ),
                     )
-                    // a gold hairline; it also keeps the bar distinct from the page in dark mode
+                    // a light hairline; it also keeps the bar distinct from the page in dark mode
                     HorizontalDivider(color = Brand.Highlight.copy(alpha = 0.4f))
                 }
             }
@@ -154,7 +154,7 @@ fun ErrorView(message: String, onRetry: () -> Unit, modifier: Modifier = Modifie
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        GradientIcon(Icons.Outlined.ErrorOutline, Brand.Emerald, Modifier.popIn())
+        GradientIcon(Icons.Outlined.ErrorOutline, Brand.Accent, Modifier.popIn())
         Text(message, Modifier.padding(vertical = 12.dp), textAlign = TextAlign.Center)
         BounceButton(onClick = onRetry) { Text("ลองใหม่") }
     }
@@ -167,7 +167,7 @@ fun EmptyView(message: String, modifier: Modifier = Modifier, action: (@Composab
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        GradientIcon(Icons.Outlined.Inbox, Brand.Emerald, Modifier.bob())
+        GradientIcon(Icons.Outlined.Inbox, Brand.Accent, Modifier.bob())
         Text(message, Modifier.padding(vertical = 12.dp), textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         action?.invoke()
@@ -187,7 +187,7 @@ fun CappedFontScale(max: Float = 1.3f, content: @Composable () -> Unit) {
     )
 }
 
-/** White on the ivory page in light mode; the raised tone in dark mode, where white isn't available. */
+/** White on the warm off-white page in light mode; the raised tone in dark mode, where white isn't available. */
 @Composable
 fun appCardColors(): CardColors = CardDefaults.cardColors(
     containerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest
@@ -210,13 +210,13 @@ fun BottomActionBar(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
-/** White icon on a round gradient badge. */
+/** Navy icon on a round orange badge. */
 @Composable
 fun GradientIcon(icon: ImageVector, colors: List<Color>, modifier: Modifier = Modifier, size: Dp = 72.dp) {
     Box(
         modifier.size(size).background(Brush.linearGradient(colors), CircleShape),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, Modifier.size(size * 0.55f), tint = Color.White) }
+    ) { Icon(icon, null, Modifier.size(size * 0.55f), tint = Brand.OnHero) }
 }
 
 /** Section heading with a thin bar in front of it. */
@@ -287,7 +287,7 @@ fun statusColor(status: BookingStatus): Color = when (status) {
 @Composable
 fun StatusChip(status: BookingStatus, modifier: Modifier = Modifier, onGradient: Boolean = false) {
     val color by animateColorAsState(statusColor(status), tween(Motion.MEDIUM), label = "statusChip")
-    // On a dark hero a see-through tint would be unreadable, so the chip turns solid white.
+    // On the orange hero a see-through tint would be unreadable, so the chip turns solid white.
     // Approved is the status people look for, so it alone gets a solid fill.
     val solid = status == BookingStatus.APPROVED
     val container = when {

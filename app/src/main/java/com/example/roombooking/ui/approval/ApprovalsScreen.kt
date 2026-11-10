@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ScrollableTabRow
@@ -63,6 +65,7 @@ class ApprovalsViewModel(private val repo: BookingRepository) : ViewModel() {
 @Composable
 fun ApprovalsScreen(
     onOpen: (Long) -> Unit,
+    onScan: () -> Unit,
     topActions: @Composable () -> Unit,
     vm: ApprovalsViewModel = viewModel(factory = ApprovalsViewModel.Factory),
 ) {
@@ -73,6 +76,14 @@ fun ApprovalsScreen(
         actions = {
             IconButton(onClick = vm::load) { Icon(Icons.Filled.Refresh, "รีเฟรช") }
             topActions()
+        },
+        // Check-in: staff scan the QR e-ticket on the booker's phone
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onScan,
+                icon = { Icon(Icons.Filled.QrCodeScanner, null) },
+                text = { Text("สแกนเช็กอิน") },
+            )
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {

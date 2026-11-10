@@ -81,3 +81,35 @@ def test_br08_time_policy(book, start, end, expected):
 def test_unknown_room(book):
     r = book(room_id=9999)
     assert r.status_code == 404 and code(r) == "ROOM_NOT_FOUND"
+
+
+def test_br03_pending_request_cannot_be_approved_after_room_deactivated(client, h, book):
+    b = book(room_id=2, start=slot(1, 9), end=slot(1, 10), attendees=5).json()
+    room = next(r for r in client.get("/api/admin/rooms", headers=h["admin"]).json() if r["id"] == 2)
+    payload = {k: room[k] for k in ("code", "name", "building", "floor", "capacity", "type_id")}
+    payload["equipment"] = [{"equipment_id": e["id"], "quantity": e["quantity"]} for e in room["equipment"]]
+    assert client.put("/api/admin/rooms/2", headers=h["admin"], json={**payload, "status": "INACTIVE"}).status_code == 200
+    r = client.post(f"/api/bookings/{b['id']}/approve", headers=h["approver"])
+    assert r.status_code == 409 and r.json()["error"]["code"] == "ROOM_UNAVAILABLE"
+    assert client.get(f"/api/bookings/{b['id']}", headers=h["s1"]).json()["status"] == "PENDING"
+    r = client.post(f"/api/bookings/{b['id']}/reject", headers=h["approver"], json={"reason": "ห้องปิดซ่อม"})
+    assert r.status_code == 200 and r.json()["status"] == "REJECTED"
+    # reopening the room makes approval possible again
+    assert client.put("/api/admin/rooms/2", headers=h["admin"], json={**payload, "status": "ACTIVE"}).status_code == 200
+    b2 = book(room_id=2, start=slot(1, 11), end=slot(1, 12), attendees=5).json()
+    assert client.post(f"/api/bookings/{b2['id']}/approve", headers=h["approver"]).status_code == 200
+
+
+def test_rb10_capacity_cannot_drop_below_active_bookings(client, h, book):
+    b = book(room_id=1, start=slot(1, 9), end=slot(1, 10), attendees=30).json()
+    room = next(r for r in client.get("/api/admin/rooms", headers=h["admin"]).json() if r["id"] == 1)
+    payload = {k: room[k] for k in ("code", "name", "building", "floor", "type_id", "status")}
+    payload["equipment"] = [{"equipment_id": e["id"], "quantity": e["quantity"]} for e in room["equipment"]]
+    r = client.put("/api/admin/rooms/1", headers=h["admin"], json={**payload, "capacity": 20})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "CAPACITY_BELOW_BOOKINGS"
+    assert r.json()["error"]["details"]["booking_ids"] == [b["id"]]
+    assert client.get("/api/rooms/1", headers=h["s1"]).json()["capacity"] == room["capacity"]
+    assert client.put("/api/admin/rooms/1", headers=h["admin"], json={**payload, "capacity": 30}).status_code == 200
+    client.post(f"/api/bookings/{b['id']}/cancel", headers=h["s1"])
+    assert client.put("/api/admin/rooms/1", headers=h["admin"], json={**payload, "capacity": 20}).status_code == 200
+    client.put("/api/admin/rooms/1", headers=h["admin"], json={**payload, "capacity": room["capacity"]})

@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Query
 
 from ..config import get_settings
 from ..db import get_conn
-from ..models import (BookingDetailOut, BookingIn, BookingOut, BookingStatus, BookingUpdateIn, CancelIn, CheckInIn,
-                      RejectIn, StaffCheckInIn)
+from ..models import (BookingDetailOut, BookingIn, BookingOut, BookingStatus, BookingUpdateIn, CancelIn,
+                      RejectIn, StaffCheckInIn, TicketScanIn)
 from ..security import get_current_user, require_roles
 from ..services import booking_service as svc
 from ..services import checkin_service
@@ -97,11 +97,10 @@ def reject(booking_id: int, data: RejectIn, user: dict = Depends(staff),
     return booking
 
 
-@router.post("/bookings/{booking_id}/check-in", response_model=BookingOut)
-def check_in(booking_id: int, data: CheckInIn, user: dict = Depends(get_current_user),
-             conn: psycopg.Connection = Depends(get_conn)):
-    """The booker scans the QR on the room's door (or types the code printed under it)."""
-    return checkin_service.check_in(conn, user, booking_id, data.code)
+@router.post("/checkin/scan", response_model=BookingOut)
+def scan_ticket(data: TicketScanIn, user: dict = Depends(staff), conn: psycopg.Connection = Depends(get_conn)):
+    """An approver or admin scans the QR e-ticket the booker shows at the room (or types the code under it)."""
+    return checkin_service.scan_ticket(conn, user, data.code)
 
 
 @router.post("/bookings/{booking_id}/staff-check-in", response_model=BookingOut)

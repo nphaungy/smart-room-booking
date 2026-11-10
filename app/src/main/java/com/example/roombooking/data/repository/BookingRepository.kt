@@ -7,9 +7,9 @@ import com.example.roombooking.data.remote.ApiService
 import com.example.roombooking.data.remote.BookingDto
 import com.example.roombooking.data.remote.BookingRequest
 import com.example.roombooking.data.remote.CancelRequest
-import com.example.roombooking.data.remote.CheckInRequest
 import com.example.roombooking.data.remote.RejectRequest
 import com.example.roombooking.data.remote.StaffCheckInRequest
+import com.example.roombooking.data.remote.TicketScanRequest
 import com.example.roombooking.data.remote.apiCall
 import com.example.roombooking.domain.Booking
 import com.example.roombooking.domain.BookingRules
@@ -68,8 +68,9 @@ class BookingRepository(
         apiCall(gson) { api.cancelBooking(id, CancelRequest(note?.ifBlank { null })).toDomain() }
             .onSuccess { refreshMine() }
 
-    suspend fun checkIn(id: Long, code: String): Result<Booking> =
-        apiCall(gson) { api.checkIn(id, CheckInRequest(code)).toDomain() }.onSuccess { refreshMine() }
+    /** Staff: scan a booker's QR e-ticket. Returns the booking that was checked in. */
+    suspend fun scanTicket(code: String): Result<Booking> =
+        apiCall(gson) { api.scanTicket(TicketScanRequest(code)).toDomain() }
 
     suspend fun staffCheckIn(id: Long, note: String): Result<Booking> =
         apiCall(gson) { api.staffCheckIn(id, StaffCheckInRequest(note.trim())).toDomain() }

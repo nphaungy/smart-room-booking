@@ -145,7 +145,7 @@ private fun NotificationCard(n: AppNotification, modifier: Modifier = Modifier, 
                     size = 40.dp,
                 )
             } else {
-                GradientIcon(Icons.Filled.Notifications, Brand.Emerald, size = 40.dp)
+                GradientIcon(Icons.Filled.Notifications, Brand.Accent, size = 40.dp)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {

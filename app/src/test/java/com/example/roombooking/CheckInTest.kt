@@ -19,18 +19,21 @@ class CheckInTest {
         "can_edit": false, "can_cancel": false, "can_decide": false
     """
 
-    @Test fun `QR content round-trips`() {
-        assertEquals("AB12CD34EF", CheckInCode.parse(CheckInCode.qrContent("AB12CD34EF")))
+    @Test fun `ticket QR content round-trips`() {
+        assertEquals("AB12CD34EF56", CheckInCode.parse(CheckInCode.qrContent("AB12CD34EF56")))
     }
 
-    @Test fun `typed code tolerates case and spaces`() {
-        assertEquals("AB12CD34EF", CheckInCode.parse("  ab12cd34ef "))
+    @Test fun `typed code tolerates case, spaces and the display dashes`() {
+        assertEquals("AB12CD34EF56", CheckInCode.parse("  ab12cd34ef56 "))
+        assertEquals("AB12CD34EF56", CheckInCode.parse(CheckInCode.display("AB12CD34EF56")))
+        assertEquals("AB12-CD34-EF56", CheckInCode.display("AB12CD34EF56"))
     }
 
     @Test fun `other QR codes and bad input are rejected`() {
-        listOf("", "https://example.com", "ABC", "AB12CD34EF00", "GGGGGGGGGG", "roombooking://checkin?code=").forEach {
-            assertNull(it, CheckInCode.parse(it))
-        }
+        listOf(
+            "", "https://example.com", "ABC", "AB12CD34EF", "AB12CD34EF5678", "GGGGGGGGGGGG",
+            "roombooking://ticket/", "roombooking://checkin?code=AB12CD34EF",
+        ).forEach { assertNull(it, CheckInCode.parse(it)) }
     }
 
     @Test fun `no-show status is understood`() {
@@ -43,18 +46,18 @@ class CheckInTest {
     @Test fun `booking cached before check-in still loads`() {
         val b = Gson().fromJson("""{$base, "status": "APPROVED"}""", BookingDto::class.java).toDomain()
         assertNull(b.checkedInAt)
-        assertFalse(b.canCheckIn)
+        assertNull(b.ticketCode)
         assertFalse(b.canStaffCheckIn)
     }
 
     @Test fun `check-in fields are mapped`() {
         val b = Gson().fromJson(
             """{$base, "status": "APPROVED", "checked_in_at": "2026-11-10T08:55:00+07:00",
-                "checkin_method": "STAFF", "can_check_in": true}""",
+                "checkin_method": "STAFF", "ticket_code": "AB12CD34EF56"}""",
             BookingDto::class.java,
         ).toDomain()
         assertEquals(8, b.checkedInAt?.hour)
         assertEquals(true, b.checkedInByStaff)
-        assertEquals(true, b.canCheckIn)
+        assertEquals("AB12CD34EF56", b.ticketCode)
     }
 }

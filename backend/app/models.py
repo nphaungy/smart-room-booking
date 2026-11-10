@@ -154,19 +154,13 @@ class CancelIn(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
-class CheckInIn(BaseModel):
+class TicketScanIn(BaseModel):
+    """What the staff's scanner read from the booker's QR, or the code typed by hand."""
     code: str = Field(min_length=1, max_length=200)
 
 
 class StaffCheckInIn(BaseModel):
     note: str = Field(min_length=1, max_length=500)
-
-
-class RoomCheckInCodeOut(BaseModel):
-    room_id: int
-    room_code: str
-    room_name: str
-    checkin_code: str
 
 
 class StatusLogOut(BaseModel):
@@ -201,10 +195,11 @@ class BookingOut(BaseModel):
     can_cancel: bool = False
     can_decide: bool = False
     checked_in_at: datetime | None = None
-    checkin_method: Literal["SELF", "STAFF"] | None = None
+    checkin_method: Literal["SCAN", "STAFF", "SELF"] | None = None
     checkin_opens_at: datetime | None = None
     checkin_deadline: datetime | None = None
-    can_check_in: bool = False
+    # The booker's e-ticket. Sent only to the booking's owner, and only while it is APPROVED.
+    ticket_code: str | None = None
     can_staff_check_in: bool = False
 
 

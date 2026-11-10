@@ -119,7 +119,7 @@ class RoomDetailViewModel(handle: SavedStateHandle, private val repo: RoomReposi
     }
 }
 
-/** Free is empty, booked is solid, pending is gold-tinted and closed is a muted stone. */
+/** Free is empty, booked is solid, pending is amber-tinted and closed is a muted stone. */
 @Composable
 private fun slotFill(kind: SlotKind): Color = when (kind) {
     SlotKind.FREE -> Color.Transparent
@@ -231,24 +231,24 @@ private fun RoomHeader(room: Room) {
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(room.code, color = Brand.Highlight, style = MaterialTheme.typography.labelLarge)
-            Text(room.name, color = Color.White, style = MaterialTheme.typography.headlineSmall)
-            Text("${room.building} ชั้น ${room.floor} · ${room.typeName}", color = Color.White.copy(alpha = 0.85f))
+            Text(room.code, color = Brand.OnHeroMuted, style = MaterialTheme.typography.labelLarge)
+            Text(room.name, color = Brand.OnHero, style = MaterialTheme.typography.headlineSmall)
+            Text("${room.building} ชั้น ${room.floor} · ${room.typeName}", color = Brand.OnHeroMuted)
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 HeaderPill("ความจุ ${room.capacity} คน")
                 room.equipment.take(2).forEach { HeaderPill(if (it.quantity > 1) "${it.name} ×${it.quantity}" else it.name) }
             }
-            room.description?.let { Text(it, color = Color.White.copy(alpha = 0.8f)) }
-            if (!room.active) Text("ห้องนี้ปิดใช้งาน ไม่สามารถจองได้", color = Brand.Highlight, fontWeight = FontWeight.SemiBold)
+            room.description?.let { Text(it, color = Brand.OnHeroMuted) }
+            if (!room.active) Text("ห้องนี้ปิดใช้งาน ไม่สามารถจองได้", color = Brand.OnHero, fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
 @Composable
 private fun HeaderPill(text: String) {
-    Surface(color = Color.White.copy(alpha = 0.14f), shape = MaterialTheme.shapes.small) {
-        Text(text, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = Color.White,
+    Surface(color = Color.White.copy(alpha = 0.35f), shape = MaterialTheme.shapes.small) {
+        Text(text, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = Brand.OnHero,
             style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }

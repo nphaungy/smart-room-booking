@@ -1,5 +1,9 @@
-"""QR check-in and the no-show record."""
-import secrets
+"""E-ticket check-in and the no-show record.
+
+Every booking has its own ticket code. Once the booking is approved, the booker's app shows it as a QR
+(like a cinema or concert e-ticket); an approver or admin scans it at the room to check the booker in.
+"""
+import re
 
 from psycopg import errors as pg
 
@@ -9,61 +13,56 @@ from ..rules import checkin_window, fmt_range, now_utc
 from .booking_service import _log, fetch_booking, get_booking
 from .notify import notify
 
-
-def _normalize(code: str) -> str:
-    code = code.strip()
-    # The app sends just the code, but a client may forward the whole QR content.
-    if "code=" in code:
-        code = code.split("code=", 1)[1]
-    return code.strip().upper()
+TICKET_PREFIX = "roombooking://ticket/"
+_TICKET_FORMAT = re.compile(r"^[0-9A-F]{12}$")
 
 
-def room_code(conn, room_id: int) -> dict:
-    row = conn.execute(
-        "SELECT id AS room_id, code AS room_code, name AS room_name, checkin_code FROM rooms WHERE id = %s",
-        (room_id,),
-    ).fetchone()
-    if row is None:
-        raise ApiError(404, "ROOM_NOT_FOUND", "ไม่พบห้องนี้")
-    return row
+def normalize_ticket(raw: str) -> str:
+    """Accepts the full QR content or the code typed by hand, in any case and with stray spaces."""
+    code = raw.strip()
+    if code.lower().startswith(TICKET_PREFIX):
+        code = code[len(TICKET_PREFIX):]
+    return code.replace(" ", "").replace("-", "").upper()
 
 
-def rotate_room_code(conn, room_id: int) -> dict:
-    room_code(conn, room_id)
-    conn.execute("UPDATE rooms SET checkin_code = %s WHERE id = %s", (secrets.token_hex(5).upper(), room_id))
-    return room_code(conn, room_id)
+def scan_ticket(conn, staff: dict, raw: str) -> dict:
+    """Staff scan a booker's e-ticket. Returns the booking so the scanner can show who and which room."""
+    code = normalize_ticket(raw)
+    if not _TICKET_FORMAT.match(code):
+        raise ApiError(422, "INVALID_TICKET", "QR นี้ไม่ใช่ตั๋วเช็กอินของระบบจองห้อง")
+    found = conn.execute("SELECT id FROM bookings WHERE ticket_code = %s", (code,)).fetchone()
+    if found is None:
+        raise ApiError(404, "TICKET_NOT_FOUND", "ไม่พบการจองของ QR นี้")
+    booking_id = found["id"]
 
-
-def check_in(conn, user: dict, booking_id: int, code: str) -> dict:
     with conn.transaction():
         b = fetch_booking(conn, booking_id, for_update=True)
-        if b["booker_id"] != user["id"]:
-            raise ApiError(403, "FORBIDDEN", "เช็กอินได้เฉพาะการจองของตนเอง")
+        room = conn.execute("SELECT code FROM rooms WHERE id = %s", (b["room_id"],)).fetchone()
+        what = f"{room['code']} {fmt_range(b['start_time'], b['end_time'])}"
         if b["checked_in_at"] is not None:
-            raise ApiError(409, "ALREADY_CHECKED_IN", "เช็กอินการจองนี้แล้ว")
+            raise ApiError(409, "ALREADY_CHECKED_IN", f"ตั๋วนี้เช็กอินไปแล้ว ({what})")
         if b["status"] == "NO_SHOW":
-            raise ApiError(409, "CHECKIN_TOO_LATE", "เลยเวลาเช็กอินแล้ว กรุณาติดต่อเจ้าหน้าที่")
+            raise ApiError(409, "CHECKIN_TOO_LATE",
+                           f"เลยเวลาเช็กอินแล้ว ระบบบันทึกว่าไม่มาใช้ห้อง ({what}) "
+                           "ถ้ามาใช้จริง ให้กด \"ยืนยันว่ามาใช้ห้อง\" ในรายละเอียดการจอง")
         if b["status"] != "APPROVED":
-            raise ApiError(409, "INVALID_STATUS", "เช็กอินได้เฉพาะการจองที่อนุมัติแล้ว")
+            raise ApiError(409, "INVALID_STATUS", f"การจองนี้ไม่ได้อยู่ในสถานะอนุมัติ ({what})")
 
         opens, closes = checkin_window(b["start_time"])
         now = now_utc()
         if now < opens:
-            raise ApiError(409, "CHECKIN_TOO_EARLY", f"ยังไม่ถึงเวลาเช็กอิน เช็กอินได้ {fmt_range(opens, closes)}")
+            raise ApiError(409, "CHECKIN_TOO_EARLY", f"ยังไม่ถึงเวลาเช็กอินของ {what} เช็กอินได้ {fmt_range(opens, closes)}")
         if now > closes:
-            raise ApiError(409, "CHECKIN_TOO_LATE", "เลยเวลาเช็กอินแล้ว กรุณาติดต่อเจ้าหน้าที่")
-
-        room = room_code(conn, b["room_id"])
-        if not secrets.compare_digest(_normalize(code).encode(), room["checkin_code"].encode()):
-            raise ApiError(422, "WRONG_ROOM_CODE", f"QR นี้ไม่ใช่ของห้อง {room['room_code']}")
+            raise ApiError(409, "CHECKIN_TOO_LATE", f"เลยเวลาเช็กอินของ {what} แล้ว")
 
         conn.execute(
-            "UPDATE bookings SET checked_in_at = now(), checked_in_by = %s, checkin_method = 'SELF', "
+            "UPDATE bookings SET checked_in_at = now(), checked_in_by = %s, checkin_method = 'SCAN', "
             "updated_at = now(), version = version + 1 WHERE id = %s",
-            (user["id"], booking_id),
+            (staff["id"], booking_id),
         )
-        _log(conn, booking_id, "APPROVED", "APPROVED", user["id"], "เช็กอินแล้ว")
-    return get_booking(conn, booking_id, user)
+        _log(conn, booking_id, "APPROVED", "APPROVED", staff["id"], "เจ้าหน้าที่สแกน QR เช็กอิน")
+        notify(conn, [b["booker_id"]], booking_id, "BOOKING_CHECKED_IN", "เช็กอินเรียบร้อย", what)
+    return get_booking(conn, booking_id, staff)
 
 
 def staff_check_in(conn, user: dict, booking_id: int, note: str) -> dict:

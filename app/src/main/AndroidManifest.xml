@@ -29,6 +29,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- A booker's ticket QR (roombooking://ticket/<code>) scanned with the phone's own camera
+                 opens this app, which checks the booker in when staff are signed in. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="roombooking" android:host="ticket" />
+            </intent-filter>
         </activity>
         <activity
             android:name=".ui.booking.PortraitCaptureActivity"

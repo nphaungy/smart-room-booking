@@ -926,39 +926,23 @@
         }
       }
     },
-    "/api/bookings/{booking_id}/check-in": {
+    "/api/checkin/scan": {
       "post": {
         "tags": [
           "Bookings (RB05-RB07, RB09)"
         ],
-        "summary": "Check In",
-        "description": "The booker scans the QR on the room's door (or types the code printed under it).",
-        "operationId": "check_in_api_bookings__booking_id__check_in_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "booking_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Booking Id"
-            }
-          }
-        ],
+        "summary": "Scan Ticket",
+        "description": "An approver or admin scans the QR e-ticket the booker shows at the room (or types the code under it).",
+        "operationId": "scan_ticket_api_checkin_scan_post",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckInIn"
+                "$ref": "#/components/schemas/TicketScanIn"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -981,7 +965,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/bookings/{booking_id}/staff-check-in": {
@@ -1610,101 +1599,6 @@
         }
       }
     },
-    "/api/admin/rooms/{room_id}/checkin-code": {
-      "get": {
-        "tags": [
-          "Admin (RB10)"
-        ],
-        "summary": "Checkin Code",
-        "operationId": "checkin_code_api_admin_rooms__room_id__checkin_code_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "room_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Room Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoomCheckInCodeOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/rooms/{room_id}/checkin-code/rotate": {
-      "post": {
-        "tags": [
-          "Admin (RB10)"
-        ],
-        "summary": "Rotate Checkin Code",
-        "description": "Issue a new code, e.g. after a photo of the QR leaks. The old poster stops working.",
-        "operationId": "rotate_checkin_code_api_admin_rooms__room_id__checkin_code_rotate_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "room_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Room Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoomCheckInCodeOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/admin/rooms/{room_id}/closures": {
       "get": {
         "tags": [
@@ -2307,8 +2201,9 @@
               {
                 "type": "string",
                 "enum": [
-                  "SELF",
-                  "STAFF"
+                  "SCAN",
+                  "STAFF",
+                  "SELF"
                 ]
               },
               {
@@ -2341,10 +2236,16 @@
             ],
             "title": "Checkin Deadline"
           },
-          "can_check_in": {
-            "type": "boolean",
-            "title": "Can Check In",
-            "default": false
+          "ticket_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Code"
           },
           "can_staff_check_in": {
             "type": "boolean",
@@ -2568,8 +2469,9 @@
               {
                 "type": "string",
                 "enum": [
-                  "SELF",
-                  "STAFF"
+                  "SCAN",
+                  "STAFF",
+                  "SELF"
                 ]
               },
               {
@@ -2602,10 +2504,16 @@
             ],
             "title": "Checkin Deadline"
           },
-          "can_check_in": {
-            "type": "boolean",
-            "title": "Can Check In",
-            "default": false
+          "ticket_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Code"
           },
           "can_staff_check_in": {
             "type": "boolean",
@@ -2767,21 +2675,6 @@
         },
         "type": "object",
         "title": "CancelIn"
-      },
-      "CheckInIn": {
-        "properties": {
-          "code": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Code"
-          }
-        },
-        "type": "object",
-        "required": [
-          "code"
-        ],
-        "title": "CheckInIn"
       },
       "ClosureIn": {
         "properties": {
@@ -3368,34 +3261,6 @@
         ],
         "title": "RoleUpdateIn"
       },
-      "RoomCheckInCodeOut": {
-        "properties": {
-          "room_id": {
-            "type": "integer",
-            "title": "Room Id"
-          },
-          "room_code": {
-            "type": "string",
-            "title": "Room Code"
-          },
-          "room_name": {
-            "type": "string",
-            "title": "Room Name"
-          },
-          "checkin_code": {
-            "type": "string",
-            "title": "Checkin Code"
-          }
-        },
-        "type": "object",
-        "required": [
-          "room_id",
-          "room_code",
-          "room_name",
-          "checkin_code"
-        ],
-        "title": "RoomCheckInCodeOut"
-      },
       "RoomEquipmentIn": {
         "properties": {
           "equipment_id": {
@@ -3816,6 +3681,22 @@
           "changed_at"
         ],
         "title": "StatusLogOut"
+      },
+      "TicketScanIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "TicketScanIn",
+        "description": "What the staff's scanner read from the booker's QR, or the code typed by hand."
       },
       "TokenOut": {
         "properties": {

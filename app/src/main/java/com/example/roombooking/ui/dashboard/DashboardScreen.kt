@@ -112,9 +112,9 @@ fun StatCard(label: String, value: String, colors: List<Color>, modifier: Modifi
         Column(Modifier.fillMaxSize().background(Brush.linearGradient(colors)).padding(14.dp).semantics(mergeDescendants = true) {}) {
             // Three cards share the width, so a figure like 100% must stay on one line.
             CappedFontScale {
-                Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Brand.OnHero, maxLines = 1)
             }
-            Text(label, style = MaterialTheme.typography.bodySmall, color = Color.White)
+            Text(label, style = MaterialTheme.typography.bodySmall, color = Brand.OnHero)
         }
     }
 }
@@ -145,12 +145,12 @@ private fun DashboardContent(d: Dashboard) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("คำขอทั้งหมด", animatedCount(d.totalBookings).toString(), Brand.Emerald, Modifier.weight(1f).enterAnimation(0))
-            StatCard("รออนุมัติตอนนี้", animatedCount(d.pendingNow, 90).toString(), Brand.Emerald, Modifier.weight(1f).enterAnimation(1))
+            StatCard("คำขอทั้งหมด", animatedCount(d.totalBookings).toString(), Brand.Accent, Modifier.weight(1f).enterAnimation(0))
+            StatCard("รออนุมัติตอนนี้", animatedCount(d.pendingNow, 90).toString(), Brand.Accent, Modifier.weight(1f).enterAnimation(1))
             StatCard(
                 "อัตราอนุมัติ",
                 d.approvalRatePercent?.let { "${animatedCount(it.toInt(), 180)}%" } ?: "-",
-                Brand.Emerald,
+                Brand.Accent,
                 Modifier.weight(1f).enterAnimation(2),
             )
         }

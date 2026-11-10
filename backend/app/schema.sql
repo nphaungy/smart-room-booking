@@ -132,14 +132,24 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, id 
 -- ---------------------------------------------------------------------
 -- QR check-in and no-shows. Written as ALTERs so an existing database upgrades on the next start.
 -- ---------------------------------------------------------------------
--- The code inside the QR poster on each room's door. Rotating it invalidates old posters.
-ALTER TABLE rooms ADD COLUMN IF NOT EXISTS checkin_code TEXT NOT NULL
-    DEFAULT upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10));
+-- Check-in works like an e-ticket: every booking carries its own random ticket code.
+-- The booker shows it as a QR, and an approver or admin scans it at the room.
+-- (Earlier versions had one fixed QR per room that the booker scanned; that column is removed.)
+ALTER TABLE rooms DROP COLUMN IF EXISTS checkin_code;
+
+-- A volatile DEFAULT is evaluated per row, so existing bookings each get their own code on upgrade.
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ticket_code TEXT NOT NULL
+    DEFAULT upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_ticket_code ON bookings (ticket_code);
 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checked_in_by BIGINT REFERENCES users(id);
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_method TEXT
-    CHECK (checkin_method IN ('SELF', 'STAFF'));
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_method TEXT;
+-- SCAN = staff scanned the booker's ticket, STAFF = staff confirmed by hand,
+-- SELF = old room-QR check-ins kept from earlier versions.
+ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_checkin_method_check;
+ALTER TABLE bookings ADD CONSTRAINT bookings_checkin_method_check
+    CHECK (checkin_method IN ('SCAN', 'STAFF', 'SELF'));
 
 -- Past bookings predate check-in, so they must not all be recorded as no-shows on upgrade.
 DO $$ BEGIN

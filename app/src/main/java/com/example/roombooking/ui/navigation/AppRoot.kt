@@ -70,8 +70,8 @@ import com.example.roombooking.domain.User
 import com.example.roombooking.ui.admin.AdminScreen
 import com.example.roombooking.ui.admin.ClosuresScreen
 import com.example.roombooking.ui.admin.RoomFormScreen
-import com.example.roombooking.ui.admin.RoomQrScreen
 import com.example.roombooking.ui.approval.ApprovalsScreen
+import com.example.roombooking.ui.approval.TicketScanScreen
 import com.example.roombooking.ui.auth.LoginScreen
 import com.example.roombooking.ui.auth.RegisterScreen
 import com.example.roombooking.ui.booking.BookingDetailScreen
@@ -115,8 +115,8 @@ object Routes {
     const val WAITLIST = "waitlist"
     const val REPORT = "report"
 
-    const val ROOM_QR = "admin/qr/{roomId}"
-    fun roomQr(id: Long) = "admin/qr/$id"
+    const val CHECKIN_SCAN = "checkin/scan?code={code}"
+    fun checkinScan(code: String? = null) = if (code == null) "checkin/scan" else "checkin/scan?code=$code"
 
     const val ADMIN_ROOM = "admin/room/{roomId}"
     fun adminRoom(id: Long?) = "admin/room/${id ?: -1}"
@@ -166,7 +166,13 @@ private val popExitAnim: AnimatedContentTransitionScope<NavBackStackEntry>.() ->
 }
 
 @Composable
-fun AppRoot(container: AppContainer, pendingBookingId: Long?, onDeepLinkHandled: () -> Unit) {
+fun AppRoot(
+    container: AppContainer,
+    pendingBookingId: Long?,
+    onDeepLinkHandled: () -> Unit,
+    pendingTicket: String? = null,
+    onTicketHandled: () -> Unit = {},
+) {
     val session by container.session.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         if (container.session.state.value is SessionState.Loading) container.session.restore()
@@ -176,7 +182,7 @@ fun AppRoot(container: AppContainer, pendingBookingId: Long?, onDeepLinkHandled:
         SessionState.LoggedOut -> AuthNav()
         // key(): a different account gets a fresh navigation stack
         is SessionState.LoggedIn -> key(s.user.id) {
-            MainNav(container, s.user, pendingBookingId, onDeepLinkHandled)
+            MainNav(container, s.user, pendingBookingId, onDeepLinkHandled, pendingTicket, onTicketHandled)
         }
     }
 }
@@ -195,7 +201,14 @@ private fun AuthNav() {
 }
 
 @Composable
-private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?, onDeepLinkHandled: () -> Unit) {
+private fun MainNav(
+    container: AppContainer,
+    user: User,
+    pendingBookingId: Long?,
+    onDeepLinkHandled: () -> Unit,
+    pendingTicket: String?,
+    onTicketHandled: () -> Unit,
+) {
     val nav = rememberNavController()
     val tabs = remember(user.role) { tabsFor(user.role) }
     val backStack by nav.currentBackStackEntryAsState()
@@ -208,6 +221,15 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
         pendingBookingId?.let {
             nav.navigate(Routes.booking(it))
             onDeepLinkHandled()
+        }
+    }
+
+    // A ticket QR scanned with the phone's camera -> open the scanner, which checks it in straight away.
+    // If nobody was signed in, this waits until someone signs in.
+    LaunchedEffect(pendingTicket) {
+        pendingTicket?.let {
+            nav.navigate(Routes.checkinScan(it))
+            onTicketHandled()
         }
     }
 
@@ -286,7 +308,11 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
                 )
             }
             composable(Routes.APPROVALS) {
-                ApprovalsScreen(onOpen = { nav.navigate(Routes.booking(it)) }, topActions = topActions)
+                ApprovalsScreen(
+                    onOpen = { nav.navigate(Routes.booking(it)) },
+                    onScan = { nav.navigate(Routes.checkinScan()) },
+                    topActions = topActions,
+                )
             }
             composable(Routes.DASHBOARD) {
                 DashboardScreen(onOpenReport = { nav.navigate(Routes.REPORT) }, topActions = topActions)
@@ -295,7 +321,6 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
                 AdminScreen(
                     onEditRoom = { nav.navigate(Routes.adminRoom(it)) },
                     onClosures = { nav.navigate(Routes.closures(it)) },
-                    onCheckInQr = { nav.navigate(Routes.roomQr(it)) },
                     topActions = topActions,
                 )
             }
@@ -351,8 +376,11 @@ private fun MainNav(container: AppContainer, user: User, pendingBookingId: Long?
             composable(Routes.REPORT) {
                 ReportScreen(onBack = { nav.popBackStack() }, onOpenBooking = { nav.navigate(Routes.booking(it)) })
             }
-            composable(Routes.ROOM_QR, arguments = listOf(navArgument("roomId") { type = NavType.LongType })) {
-                RoomQrScreen(onBack = { nav.popBackStack() })
+            composable(
+                Routes.CHECKIN_SCAN,
+                arguments = listOf(navArgument("code") { type = NavType.StringType; nullable = true; defaultValue = null }),
+            ) {
+                TicketScanScreen(onBack = { nav.popBackStack() }, onOpenBooking = { nav.navigate(Routes.booking(it)) })
             }
             composable(Routes.ADMIN_ROOM, arguments = listOf(navArgument("roomId") { type = NavType.LongType })) {
                 RoomFormScreen(onBack = { nav.popBackStack() })

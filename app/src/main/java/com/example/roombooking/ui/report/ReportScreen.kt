@@ -154,9 +154,9 @@ private fun ReportContent(data: ReportData, onOpenBooking: (Long) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("เช็กอิน", r.checkedIn.toString(), Brand.Emerald, Modifier.weight(1f).enterAnimation(0))
-            StatCard("ไม่มาใช้ห้อง", r.noShows.toString(), Brand.Emerald, Modifier.weight(1f).enterAnimation(1))
-            StatCard("อัตราการมา", r.attendanceRatePercent?.let { "%.0f%%".format(it) } ?: "-", Brand.Emerald,
+            StatCard("เช็กอิน", r.checkedIn.toString(), Brand.Accent, Modifier.weight(1f).enterAnimation(0))
+            StatCard("ไม่มาใช้ห้อง", r.noShows.toString(), Brand.Accent, Modifier.weight(1f).enterAnimation(1))
+            StatCard("อัตราการมา", r.attendanceRatePercent?.let { "%.0f%%".format(it) } ?: "-", Brand.Accent,
                 Modifier.weight(1f).enterAnimation(2))
         }
 

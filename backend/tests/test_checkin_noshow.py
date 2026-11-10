@@ -1,4 +1,4 @@
-"""QR check-in and the no-show record."""
+"""E-ticket check-in (staff scan the booker's QR) and the no-show record."""
 import pytest
 
 from app.db import apply_schema, init_pool
@@ -30,75 +30,113 @@ def approved_at(db):
 
 
 @pytest.fixture
-def qr(client, h):
-    def _qr(room_id=1):
-        return client.get(f"/api/admin/rooms/{room_id}/checkin-code", headers=h["admin"]).json()["checkin_code"]
-    return _qr
+def ticket(db):
+    """The booking's ticket code, read straight from the database (what the booker's QR contains)."""
+    def _ticket(booking_id):
+        return db.execute("SELECT ticket_code FROM bookings WHERE id = %s", (booking_id,)).fetchone()[0]
+    return _ticket
 
 
-def test_check_in_succeeds_inside_window(client, h, approved_at, qr):
+@pytest.fixture
+def scan(client, h):
+    def _scan(code, who="approver"):
+        return client.post("/api/checkin/scan", headers=h[who], json={"code": code})
+    return _scan
+
+
+# ------------------------------------------------------------------ the e-ticket itself
+def test_ticket_is_shown_only_to_the_owner_once_approved(client, h, book):
+    b = book().json()
+    assert b["ticket_code"] is None  # still pending: no ticket yet
+    client.post(f"/api/bookings/{b['id']}/approve", headers=h["approver"])
+
+    mine = client.get(f"/api/bookings/{b['id']}", headers=h["s1"]).json()
+    assert mine["ticket_code"] and len(mine["ticket_code"]) == 12
+    assert client.get("/api/bookings/me", headers=h["s1"]).json()[0]["ticket_code"] == mine["ticket_code"]
+    # staff never receive it, so nobody can check a booker in without the booker's phone
+    assert client.get(f"/api/bookings/{b['id']}", headers=h["approver"]).json()["ticket_code"] is None
+    assert client.get(f"/api/bookings/{b['id']}", headers=h["admin"]).json()["ticket_code"] is None
+    assert all(x["ticket_code"] is None for x in client.get("/api/bookings", headers=h["approver"]).json())
+    assert client.get(f"/api/bookings/{b['id']}", headers=h["s2"]).status_code == 403
+
+
+def test_every_booking_gets_its_own_ticket(approved_at, ticket):
+    codes = {ticket(approved_at(5 + 120 * i)) for i in range(5)}
+    assert len(codes) == 5
+
+
+def test_ticket_disappears_when_booking_is_cancelled(client, h, book):
+    b = book().json()
+    client.post(f"/api/bookings/{b['id']}/approve", headers=h["approver"])
+    client.post(f"/api/bookings/{b['id']}/cancel", headers=h["s1"], json={})
+    assert client.get(f"/api/bookings/{b['id']}", headers=h["s1"]).json()["ticket_code"] is None
+
+
+# ------------------------------------------------------------------ scanning
+def test_staff_scan_checks_the_booker_in(client, h, approved_at, ticket, scan):
     bid = approved_at(5)
     before = client.get(f"/api/bookings/{bid}", headers=h["s1"]).json()
-    assert before["can_check_in"] and before["checkin_deadline"] and before["checked_in_at"] is None
+    assert before["checkin_deadline"] and before["checked_in_at"] is None
 
-    r = client.post(f"/api/bookings/{bid}/check-in", headers=h["s1"], json={"code": qr()})
+    r = scan(ticket(bid))
     assert r.status_code == 200, r.text
-    assert r.json()["checked_in_at"] and r.json()["checkin_method"] == "SELF"
-    assert not r.json()["can_check_in"] and r.json()["checkin_deadline"] is None
+    body = r.json()
+    assert body["id"] == bid and body["booker_name"] and body["room_code"]  # the scanner shows who and where
+    assert body["checked_in_at"] and body["checkin_method"] == "SCAN" and body["checkin_deadline"] is None
+    assert "BOOKING_CHECKED_IN" in [n["type"] for n in client.get("/api/notifications", headers=h["s1"]).json()]
 
-    again = client.post(f"/api/bookings/{bid}/check-in", headers=h["s1"], json={"code": qr()})
+    again = scan(ticket(bid))
     assert again.status_code == 409 and code(again) == "ALREADY_CHECKED_IN"
 
 
-@pytest.mark.parametrize("shape", ["roombooking://checkin?code={}", "  {}  "])
-def test_check_in_accepts_full_qr_content_and_whitespace(client, h, approved_at, qr, shape):
-    r = client.post(f"/api/bookings/{approved_at(5)}/check-in", headers=h["s1"], json={"code": shape.format(qr())})
+def test_admin_can_scan_too(approved_at, ticket, scan):
+    assert scan(ticket(approved_at(5)), who="admin").status_code == 200
+
+
+def test_booker_cannot_scan_even_their_own_ticket(approved_at, ticket, scan):
+    bid = approved_at(5)
+    assert scan(ticket(bid), who="s1").status_code == 403
+    assert scan(ticket(bid), who="s2").status_code == 403
+
+
+@pytest.mark.parametrize("shape", ["roombooking://ticket/{}", "  {}  ", "ROOMBOOKING://TICKET/{}"])
+def test_scan_accepts_full_qr_content_and_whitespace(approved_at, ticket, scan, shape):
+    r = scan(shape.format(ticket(approved_at(5))))
     assert r.status_code == 200, r.text
 
 
-def test_check_in_is_case_insensitive(client, h, approved_at, qr):
-    r = client.post(f"/api/bookings/{approved_at(5)}/check-in", headers=h["s1"], json={"code": qr().lower()})
+def test_scan_is_case_insensitive(approved_at, ticket, scan):
+    r = scan(ticket(approved_at(5)).lower())
     assert r.status_code == 200, r.text
 
 
-def test_check_in_rejects_code_of_another_room(client, h, approved_at, qr):
-    r = client.post(f"/api/bookings/{approved_at(5)}/check-in", headers=h["s1"], json={"code": qr(2)})
-    assert r.status_code == 422 and code(r) == "WRONG_ROOM_CODE"
+def test_scan_rejects_unknown_or_foreign_codes(scan):
+    unknown = scan("ABCDEF123456")
+    assert unknown.status_code == 404 and code(unknown) == "TICKET_NOT_FOUND"
+    foreign = scan("https://example.com/some-other-qr")
+    assert foreign.status_code == 422 and code(foreign) == "INVALID_TICKET"
 
 
-def test_check_in_time_window(client, h, approved_at, qr):
-    early = client.post(f"/api/bookings/{approved_at(60)}/check-in", headers=h["s1"], json={"code": qr()})
+def test_scan_time_window(approved_at, ticket, scan):
+    early = scan(ticket(approved_at(60)))
     assert early.status_code == 409 and code(early) == "CHECKIN_TOO_EARLY"
-    late = client.post(f"/api/bookings/{approved_at(-20, room_id=2)}/check-in", headers=h["s1"], json={"code": qr(2)})
+    late = scan(ticket(approved_at(-20, room_id=2)))
     assert late.status_code == 409 and code(late) == "CHECKIN_TOO_LATE"
 
 
-def test_only_owner_can_check_in(client, h, approved_at, qr):
-    bid = approved_at(5)
-    assert client.post(f"/api/bookings/{bid}/check-in", headers=h["s2"], json={"code": qr()}).status_code == 403
-    assert client.post(f"/api/bookings/{bid}/check-in", headers=h["approver"], json={"code": qr()}).status_code == 403
-
-
-def test_pending_booking_cannot_check_in(client, h, book, qr):
-    b = book().json()
-    r = client.post(f"/api/bookings/{b['id']}/check-in", headers=h["s1"], json={"code": qr()})
+def test_pending_or_cancelled_booking_cannot_be_scanned(client, h, book, ticket, scan):
+    pending = book().json()
+    r = scan(ticket(pending["id"]))
+    assert r.status_code == 409 and code(r) == "INVALID_STATUS"
+    client.post(f"/api/bookings/{pending['id']}/cancel", headers=h["s1"], json={})
+    r = scan(ticket(pending["id"]))
     assert r.status_code == 409 and code(r) == "INVALID_STATUS"
 
 
-def test_code_is_admin_only_and_never_public(client, h):
-    assert client.get("/api/admin/rooms/1/checkin-code", headers=h["approver"]).status_code == 403
-    assert client.post("/api/admin/rooms/1/checkin-code/rotate", headers=h["s1"]).status_code == 403
+def test_room_qr_endpoints_are_gone(client, h):
+    assert client.get("/api/admin/rooms/1/checkin-code", headers=h["admin"]).status_code == 404
+    assert client.post("/api/bookings/1/check-in", headers=h["s1"], json={"code": "x"}).status_code in (404, 405)
     assert "checkin_code" not in client.get("/api/rooms/1", headers=h["s1"]).json()
-    assert "checkin_code" not in client.get("/api/rooms", headers=h["s1"]).json()[0]
-
-
-def test_rotating_code_invalidates_the_old_one(client, h, approved_at, qr):
-    old = qr()
-    new = client.post("/api/admin/rooms/1/checkin-code/rotate", headers=h["admin"]).json()["checkin_code"]
-    assert new != old and len(new) == 10
-    bid = approved_at(5)
-    assert code(client.post(f"/api/bookings/{bid}/check-in", headers=h["s1"], json={"code": old})) == "WRONG_ROOM_CODE"
-    assert client.post(f"/api/bookings/{bid}/check-in", headers=h["s1"], json={"code": new}).status_code == 200
 
 
 def test_sweep_records_no_show_and_frees_slot(client, h, approved_at, db):
@@ -107,17 +145,17 @@ def test_sweep_records_no_show_and_frees_slot(client, h, approved_at, db):
     b = client.get(f"/api/bookings/{bid}", headers=h["s1"]).json()
     assert b["status"] == "NO_SHOW"
     assert b["logs"][-1]["changed_by_name"] == "ระบบ" and b["logs"][-1]["to_status"] == "NO_SHOW"
-    assert not b["can_cancel"] and not b["can_edit"] and not b["can_check_in"]
+    assert not b["can_cancel"] and not b["can_edit"] and b["ticket_code"] is None
     assert "BOOKING_NO_SHOW" in [n["type"] for n in client.get("/api/notifications", headers=h["s1"]).json()]
     # would raise ExclusionViolation if the no-show still held the room
     db.execute("INSERT INTO bookings (room_id, booker_id, start_time, end_time, attendees, purpose) "
                "VALUES (1, 4, now() + interval '10 min', now() + interval '20 min', 1, 'y')")
 
 
-def test_sweep_leaves_everything_else_alone(client, h, approved_at, qr):
+def test_sweep_leaves_everything_else_alone(client, h, approved_at, ticket, scan):
     inside_grace = approved_at(-10)
     checked_in = approved_at(5, room_id=2)
-    client.post(f"/api/bookings/{checked_in}/check-in", headers=h["s1"], json={"code": qr(2)})
+    assert scan(ticket(checked_in)).status_code == 200
     exempt = approved_at(-500, required=False, room_id=3)
     sweep()
     for bid in (inside_grace, checked_in, exempt):
@@ -132,10 +170,10 @@ def test_sweep_is_idempotent(client, h, approved_at):
     assert len([l for l in logs if l["to_status"] == "NO_SHOW"]) == 1
 
 
-def test_booker_arriving_after_no_show_is_told_to_see_staff(client, h, approved_at, qr):
+def test_scanning_after_no_show_points_staff_to_manual_confirm(approved_at, ticket, scan):
     bid = approved_at(-20)
     sweep()
-    r = client.post(f"/api/bookings/{bid}/check-in", headers=h["s1"], json={"code": qr()})
+    r = scan(ticket(bid))
     assert r.status_code == 409 and code(r) == "CHECKIN_TOO_LATE"
 
 
@@ -187,3 +225,18 @@ def test_upgrade_does_not_mark_old_bookings_as_no_show(db):
     assert db.execute("SELECT checkin_required FROM bookings WHERE id = %s", (future,)).fetchone()[0] is True
     sweep()
     assert db.execute("SELECT status FROM bookings WHERE id = %s", (past,)).fetchone()[0] == "APPROVED"
+
+
+def test_upgrade_gives_old_bookings_their_own_tickets_and_drops_room_codes(db):
+    """A database from the room-QR version: old bookings must each get a distinct ticket on the next start."""
+    db.execute("ALTER TABLE bookings DROP COLUMN ticket_code")
+    db.execute("ALTER TABLE rooms ADD COLUMN checkin_code TEXT")
+    for i in range(3):
+        db.execute("INSERT INTO bookings (room_id, booker_id, start_time, end_time, attendees, purpose) "
+                   "VALUES (1, 3, now() + make_interval(days => %s), now() + make_interval(days => %s, hours => 1), 1, 'x')",
+                   (i + 1, i + 1))
+    apply_schema(TEST_DB)
+    codes = [r[0] for r in db.execute("SELECT ticket_code FROM bookings").fetchall()]
+    assert len(codes) == 3 and len(set(codes)) == 3 and all(len(c) == 12 for c in codes)
+    assert db.execute("SELECT count(*) FROM information_schema.columns "
+                      "WHERE table_name = 'rooms' AND column_name = 'checkin_code'").fetchone()[0] == 0

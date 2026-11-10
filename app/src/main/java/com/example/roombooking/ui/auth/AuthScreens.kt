@@ -141,9 +141,9 @@ private fun AuthForm(title: String, failure: Any?, content: @Composable () -> Un
                 Icon(Icons.Outlined.MeetingRoom, null, Modifier.size(40.dp), tint = Brand.Ink)
             }
             Spacer(Modifier.height(16.dp))
-            Text("ระบบจองห้อง", Modifier.enterAnimation(1), style = MaterialTheme.typography.headlineMedium, color = Color.White)
+            Text("ระบบจองห้อง", Modifier.enterAnimation(1), style = MaterialTheme.typography.headlineMedium, color = Brand.OnHero)
             Text("Smart Room Booking · มหาวิทยาลัย", Modifier.enterAnimation(1),
-                style = MaterialTheme.typography.titleSmall, color = Brand.Highlight)
+                style = MaterialTheme.typography.titleSmall, color = Brand.OnHeroMuted)
             Spacer(Modifier.height(32.dp))
             Card(
                 Modifier.fillMaxWidth().enterAnimation(2, offsetPx = 80f).shakeOn(failure),

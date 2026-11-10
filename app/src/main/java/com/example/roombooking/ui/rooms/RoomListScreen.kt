@@ -326,11 +326,11 @@ private fun GreetingCard(name: String, upcoming: NextBooking?, onOpenBooking: (L
                 .floatingOrbs()
                 .padding(20.dp),
         ) {
-            Text(greeting(), color = Brand.Highlight, style = MaterialTheme.typography.labelLarge)
-            Text(name.ifBlank { "ผู้ใช้" }, color = Color.White, style = MaterialTheme.typography.headlineSmall)
+            Text(greeting(), color = Brand.OnHeroMuted, style = MaterialTheme.typography.labelLarge)
+            Text(name.ifBlank { "ผู้ใช้" }, color = Brand.OnHero, style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
             Surface(
-                color = Color.White.copy(alpha = 0.16f),
+                color = Color.White.copy(alpha = 0.35f),
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth().let { m ->
                     if (next != null) m.clickable { onOpenBooking(next.id) } else m
@@ -344,12 +344,12 @@ private fun GreetingCard(name: String, upcoming: NextBooking?, onOpenBooking: (L
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         if (next == null) {
-                            Text("ยังไม่มีการจองที่กำลังจะถึง", color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Text("ค้นหาห้องว่างด้านล่างเพื่อเริ่มจอง", color = Color.White.copy(alpha = 0.8f),
+                            Text("ยังไม่มีการจองที่กำลังจะถึง", color = Brand.OnHero, fontWeight = FontWeight.SemiBold)
+                            Text("ค้นหาห้องว่างด้านล่างเพื่อเริ่มจอง", color = Brand.OnHeroMuted,
                                 style = MaterialTheme.typography.bodySmall)
                         } else {
-                            Text("การจองถัดไป · ${next.roomCode}", color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Text(Fmt.bookingWhen(next.start, next.end), color = Color.White.copy(alpha = 0.85f),
+                            Text("การจองถัดไป · ${next.roomCode}", color = Brand.OnHero, fontWeight = FontWeight.SemiBold)
+                            Text(Fmt.bookingWhen(next.start, next.end), color = Brand.OnHeroMuted,
                                 style = MaterialTheme.typography.bodySmall)
                         }
                     }
@@ -358,12 +358,12 @@ private fun GreetingCard(name: String, upcoming: NextBooking?, onOpenBooking: (L
             }
             if (next != null && upcoming.canCheckIn) {
                 Spacer(Modifier.height(12.dp))
-                // Gold stands out on the emerald card, because missing this is recorded as a no-show.
+                // The light button stands out on the orange card, because missing check-in is recorded as a no-show.
                 Button(
                     onClick = { onOpenBooking(next.id) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Brand.Highlight, contentColor = Brand.Ink),
-                ) { Text("เช็กอินเลย" + (next.checkinDeadline?.let { " · ภายใน ${Fmt.time(it)} น." } ?: "")) }
+                ) { Text("แสดง QR เช็กอิน" + (next.checkinDeadline?.let { " · ภายใน ${Fmt.time(it)} น." } ?: "")) }
             }
         }
     }
@@ -385,7 +385,7 @@ private fun SearchPanel(vm: RoomListViewModel, expanded: Boolean, onToggle: () -
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            GradientIcon(Icons.Outlined.Search, Brand.Emerald, size = 36.dp)
+            GradientIcon(Icons.Outlined.Search, Brand.Accent, size = 36.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("ค้นหาห้องว่าง", style = MaterialTheme.typography.titleMedium)
@@ -432,7 +432,7 @@ private fun typeIcon(typeName: String): ImageVector = when {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RoomCard(room: Room, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val accent = Brand.Emerald
+    val accent = Brand.Accent
     val source = remember { MutableInteractionSource() }
     Card(
         onClick = onClick,
@@ -452,7 +452,7 @@ fun RoomCard(room: Room, modifier: Modifier = Modifier, onClick: () -> Unit) {
                 Box(
                     Modifier.size(48.dp).popIn(120).background(Brush.linearGradient(accent), MaterialTheme.shapes.medium),
                     contentAlignment = Alignment.Center,
-                ) { Icon(typeIcon(room.typeName), null, tint = Color.White) }
+                ) { Icon(typeIcon(room.typeName), null, tint = Brand.OnHero) }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(room.code, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)

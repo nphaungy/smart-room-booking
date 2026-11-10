@@ -17,7 +17,6 @@ import com.example.roombooking.domain.Equipment
 import com.example.roombooking.domain.MonthlyReport
 import com.example.roombooking.domain.Role
 import com.example.roombooking.domain.Room
-import com.example.roombooking.domain.RoomCheckInCode
 import com.example.roombooking.domain.User
 import com.example.roombooking.domain.toDomain
 import com.google.gson.Gson
@@ -56,13 +55,6 @@ class AdminRepository(private val api: ApiService, private val gson: Gson) {
             dateTo = month.atEndOfMonth().toString(),
         ).map { it.toDomain() }
     }
-
-    // QR check-in
-    suspend fun roomCheckInCode(roomId: Long): Result<RoomCheckInCode> =
-        apiCall(gson) { api.roomCheckInCode(roomId).toDomain() }
-
-    suspend fun rotateRoomCheckInCode(roomId: Long): Result<RoomCheckInCode> =
-        apiCall(gson) { api.rotateRoomCheckInCode(roomId).toDomain() }
 
     // RB10 rooms
     suspend fun rooms(): Result<List<Room>> = apiCall(gson) { api.adminRooms().map { it.toDomain() } }

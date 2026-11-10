@@ -200,7 +200,7 @@ fun BookingCard(b: Booking, showBooker: Boolean, modifier: Modifier = Modifier, 
             Text(b.purpose, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
             when {
                 b.checkedInAt != null -> Text("เช็กอินแล้ว", color = StatusColors.free, fontWeight = FontWeight.SemiBold)
-                b.isCheckInOpen() -> Text("แตะเพื่อเช็กอิน", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                b.isCheckInOpen() -> Text("แตะเพื่อแสดง QR เช็กอิน", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             }
         }
     }

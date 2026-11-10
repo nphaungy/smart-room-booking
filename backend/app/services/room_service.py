@@ -148,6 +148,18 @@ def update_room(conn, room_id: int, data: RoomIn) -> dict:
     with conn.transaction():
         if conn.execute("SELECT id FROM rooms WHERE id = %s FOR UPDATE", (room_id,)).fetchone() is None:
             raise ApiError(404, "ROOM_NOT_FOUND", "ไม่พบห้องนี้")
+        # RB10/BR07: capacity can't drop below a booking that hasn't ended yet. The FOR UPDATE above
+        # holds off new bookings and edits (they take FOR SHARE) while this is checked.
+        too_big = conn.execute(
+            "SELECT id, attendees FROM bookings WHERE room_id = %s AND status IN ('PENDING', 'APPROVED') "
+            "AND end_time > now() AND attendees > %s ORDER BY attendees DESC",
+            (room_id, data.capacity),
+        ).fetchall()
+        if too_big:
+            raise ApiError(409, "CAPACITY_BELOW_BOOKINGS",
+                           f"ลดความจุเหลือ {data.capacity} คนไม่ได้ เพราะมีการจองที่ยังไม่สิ้นสุด {len(too_big)} รายการ "
+                           f"ซึ่งมีผู้เข้าร่วมสูงสุด {too_big[0]['attendees']} คน กรุณาจัดการการจองเหล่านั้นก่อน",
+                           {"booking_ids": [r["id"] for r in too_big]})
         conn.execute(
             "UPDATE rooms SET code = %s, name = %s, building = %s, floor = %s, capacity = %s, type_id = %s, "
             "status = %s, description = %s, image_url = %s WHERE id = %s",

@@ -102,13 +102,14 @@ data class Booking(
     val checkedInByStaff: Boolean = false,
     val checkinOpensAt: OffsetDateTime? = null,
     val checkinDeadline: OffsetDateTime? = null,
-    val canCheckIn: Boolean = false,
+    /** The booker's e-ticket code, shown as a QR. Only the owner of an approved booking has it. */
+    val ticketCode: String? = null,
     val canStaffCheckIn: Boolean = false,
 )
 
 /**
- * Worked out from the times rather than the server's can_check_in, because a booking cached earlier
- * still has the answer from when it was fetched.
+ * Whether staff can scan this booking's ticket right now. Worked out from the times on the device,
+ * so a booking cached earlier still gives the right answer.
  */
 fun Booking.isCheckInOpen(now: OffsetDateTime = OffsetDateTime.now()): Boolean {
     val opens = checkinOpensAt ?: return false
@@ -134,8 +135,6 @@ data class WaitlistEntry(
     val position: Int?,
     val bookingId: Long?,
 )
-
-data class RoomCheckInCode(val roomCode: String, val roomName: String, val code: String)
 
 data class MonthlyReport(
     val totalRequests: Int,

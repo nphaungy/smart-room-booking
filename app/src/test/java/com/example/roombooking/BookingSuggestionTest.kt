@@ -69,8 +69,7 @@ class BookingSuggestionTest {
     private val window = """, "checkin_opens_at": "2026-11-10T08:45:00+07:00", "checkin_deadline": "2026-11-10T09:15:00+07:00""""
 
     @Test fun `check-in follows the clock, not the cached flag`() {
-        val b = booking(window) // can_check_in is absent, as on a booking cached before the window opened
-        assertFalse(b.canCheckIn)
+        val b = booking(window) // the window comes from the server; whether it is open is decided by the clock
         assertFalse(b.isCheckInOpen(OffsetDateTime.parse("2026-11-10T08:44:59+07:00")))
         assertTrue(b.isCheckInOpen(OffsetDateTime.parse("2026-11-10T08:45:00+07:00")))
         assertTrue(b.isCheckInOpen(OffsetDateTime.parse("2026-11-10T09:15:00+07:00")))
