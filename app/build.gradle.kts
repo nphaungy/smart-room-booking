@@ -18,8 +18,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Android Emulator reaches the computer's localhost at 10.0.2.2.
-        // On a real phone, change this to your computer's LAN IP, e.g. "http://192.168.1.50:8000/api/".
-        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/api/\"")
+        // On a real phone, change this to your computer's LAN IP, e.g. "http://192.168.1.50:8001/api/".
+        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8001/api/\"")
     }
 
     buildTypes {

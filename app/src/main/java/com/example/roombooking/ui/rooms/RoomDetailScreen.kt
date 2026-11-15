@@ -178,7 +178,7 @@ fun RoomDetailScreen(
                 item { Box(Modifier.enterAnimation(0)) { RoomHeader(r.data) } }
                 item {
                     Spacer(Modifier.height(8.dp))
-                    Text("ปฏิทินช่วงเวลา (RB04)", style = MaterialTheme.typography.titleMedium)
+                    Text("ปฏิทินช่วงเวลา", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
                     DateChips(vm.date, vm::selectDate)
                     Spacer(Modifier.height(8.dp))
