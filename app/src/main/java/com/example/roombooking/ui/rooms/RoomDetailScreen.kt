@@ -67,6 +67,7 @@ import com.example.roombooking.ui.common.DateChips
 import com.example.roombooking.ui.common.ErrorView
 import com.example.roombooking.ui.common.Fmt
 import com.example.roombooking.ui.common.LoadingView
+import com.example.roombooking.ui.common.PullRefresh
 import com.example.roombooking.ui.common.Motion
 import com.example.roombooking.ui.common.enterAnimation
 import com.example.roombooking.ui.common.ScreenScaffold
@@ -167,11 +168,12 @@ fun RoomDetailScreen(
             }
         },
     ) { padding ->
+        PullRefresh(vm.room, vm::reload, Modifier.padding(padding)) {
         when (val r = vm.room) {
-            UiState.Loading, UiState.Empty -> LoadingView(Modifier.padding(padding))
-            is UiState.Error -> ErrorView(r.message, vm::reload, Modifier.padding(padding))
+            UiState.Loading, UiState.Empty -> LoadingView()
+            is UiState.Error -> ErrorView(r.message, vm::reload)
             is UiState.Success -> LazyColumn(
-                Modifier.padding(padding).fillMaxSize(),
+                Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -212,6 +214,7 @@ fun RoomDetailScreen(
                     }
                 }
             }
+        }
         }
     }
 }

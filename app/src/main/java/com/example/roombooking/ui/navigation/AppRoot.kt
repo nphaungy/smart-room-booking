@@ -17,6 +17,13 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -267,9 +274,24 @@ private fun MainNav(
             ) {
                 // Five tabs share a phone's width, so the labels can only grow so far.
                 CappedFontScale {
-                    NavigationBar {
+                    // Compact bar: 56dp of content (the M3 default is 80dp) plus the system gesture area.
+                    // Built from a Surface + Row (what NavigationBar does inside) so the fixed height can centre the items.
+                    androidx.compose.material3.Surface(
+                        color = androidx.compose.material3.NavigationBarDefaults.containerColor,
+                        tonalElevation = androidx.compose.material3.NavigationBarDefaults.Elevation,
+                    ) {
+                    androidx.compose.foundation.layout.Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .height(56.dp)
+                            .padding(top = 11.dp) // nudges the items 5.5dp lower in the bar
+                            .selectableGroup(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
+                                modifier = Modifier.fillMaxHeight(),
                                 selected = currentRoute == tab.route,
                                 onClick = { nav.navigateToTab(tab.route) },
                                 icon = { TabIcon(tab.icon, currentRoute == tab.route) },
@@ -281,6 +303,7 @@ private fun MainNav(
                                 ),
                             )
                         }
+                    }
                     }
                 }
             }

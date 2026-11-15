@@ -41,7 +41,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Groups
@@ -185,6 +185,29 @@ class RoomListViewModel(
         }
     }
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
+    /** Pull-to-refresh: reloads rooms (or the current search) and my bookings without blanking the list. */
+    fun pullRefresh() {
+        if (isRefreshing) return
+        isRefreshing = true
+        viewModelScope.launch {
+            try {
+                if (searchResult.value != null) {
+                    searchResult.value = repo.search(filter).toListState()
+                } else {
+                    val r = repo.refresh()
+                    offlineNotice = r.exceptionOrNull()?.message
+                    refreshState.value = r.fold({ UiState.Success(Unit) }, { UiState.Error(it.message ?: "โหลดข้อมูลไม่สำเร็จ") })
+                }
+                bookings.refreshMine()
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
+
     fun search() {
         val f = filter
         filterError = when {
@@ -217,6 +240,7 @@ private fun greeting(): String = when (LocalTime.now().hour) {
     else -> "สวัสดีตอนเย็น"
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun RoomListScreen(
     onOpenRoom: (roomId: Long, date: LocalDate?) -> Unit,
@@ -233,10 +257,9 @@ fun RoomListScreen(
     LaunchedEffect(showFilter) { if (showFilter) listState.animateScrollToItem(1) }
 
     ScreenScaffold(
-        title = "ระบบจองห้อง",
-        subtitle = "Smart Room Booking",
+        title = "Room Booking",
+        contentColor = Color.White,
         actions = {
-            IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, "รีเฟรช") }
             topActions()
         },
         bottomBar = {
@@ -257,8 +280,13 @@ fun RoomListScreen(
             }
         },
     ) { padding ->
+        PullToRefreshBox(
+            isRefreshing = vm.isRefreshing,
+            onRefresh = vm::pullRefresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
         LazyColumn(
-            Modifier.padding(padding).fillMaxSize(),
+            Modifier.fillMaxSize(),
             state = listState,
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -290,6 +318,7 @@ fun RoomListScreen(
                     RoomCard(room, Modifier.animateItem().enterOnce(seen, room.id, index)) { onOpenRoom(room.id, vm.filter.date) }
                 }
             }
+        }
         }
     }
 }
@@ -326,8 +355,8 @@ private fun GreetingCard(name: String, upcoming: NextBooking?, onOpenBooking: (L
                 .floatingOrbs()
                 .padding(20.dp),
         ) {
-            Text(greeting(), color = Brand.OnHeroMuted, style = MaterialTheme.typography.labelLarge)
-            Text(name.ifBlank { "ผู้ใช้" }, color = Brand.OnHero, style = MaterialTheme.typography.headlineSmall)
+            Text(greeting(), color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
+            Text(name.ifBlank { "ผู้ใช้" }, color = Color.White, style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
             Surface(
                 color = Color.White.copy(alpha = 0.35f),

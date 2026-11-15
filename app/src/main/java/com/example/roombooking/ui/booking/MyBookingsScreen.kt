@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -118,8 +117,8 @@ fun MyBookingsScreen(
     val tabs: List<BookingStatus?> = listOf(null) + BookingStatus.entries
     ScreenScaffold(
         title = "การจองของฉัน",
+        contentColor = androidx.compose.ui.graphics.Color.White,
         actions = {
-            IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, "รีเฟรช") }
             topActions()
         },
     ) { padding ->

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,11 +80,10 @@ fun WaitlistScreen(
     ScreenScaffold(
         title = "คิวรอห้อง",
         onBack = onBack,
-        actions = { IconButton(onClick = vm::load) { Icon(Icons.Filled.Refresh, "รีเฟรช") } },
         snackbarHostState = snackbar,
     ) { padding ->
         StateContent(vm.state, vm::load, "ยังไม่มีคิวรอห้อง", Modifier.padding(padding)) { list ->
-            LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(list, key = { it.id }) { e -> WaitlistCard(e, onLeave = { vm.leave(e.id) }, onOpenBooking = onOpenBooking) }
             }
         }

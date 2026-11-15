@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,7 +73,6 @@ fun ApprovalsScreen(
     ScreenScaffold(
         title = "พิจารณาการจอง",
         actions = {
-            IconButton(onClick = vm::load) { Icon(Icons.Filled.Refresh, "รีเฟรช") }
             topActions()
         },
         // Check-in: staff scan the QR e-ticket on the booker's phone

@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -106,13 +105,11 @@ fun NotificationsScreen(
         onBack = onBack,
         actions = {
             IconButton(onClick = vm::markAll) { Icon(Icons.Filled.DoneAll, "อ่านทั้งหมด") }
-            IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, "รีเฟรช") }
         },
     ) { padding ->
         StateContent(state, vm::refresh, "ยังไม่มีการแจ้งเตือน", Modifier.padding(padding)) { list ->
             val seen = remember { mutableSetOf<Any>() }
             LazyColumn(
-                Modifier.padding(padding),
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {

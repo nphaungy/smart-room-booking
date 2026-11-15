@@ -170,7 +170,7 @@ private fun DashboardContent(d: Dashboard) {
             }
         }
 
-        GradientTitle("อัตราการใช้ห้อง (ชั่วโมงที่อนุมัติ ÷ ชั่วโมงเปิดให้บริการ)")
+        GradientTitle("อัตราการใช้ห้อง")
         d.rooms.forEachIndexed { i, r ->
             val usage = animatedProgress((r.utilizationPercent / 100.0).toFloat().coerceIn(0f, 1f), delayMillis = 200 + i * 60)
             Column(Modifier.semantics(mergeDescendants = true) {}) {

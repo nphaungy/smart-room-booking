@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -121,7 +120,6 @@ fun BookingDetailScreen(
     ScreenScaffold(
         title = "รายละเอียดการจอง",
         onBack = onBack,
-        actions = { IconButton(onClick = vm::load) { Icon(Icons.Filled.Refresh, "รีเฟรช") } },
         bottomBar = {
             val b = (vm.state as? UiState.Success)?.data
             when {
@@ -139,7 +137,7 @@ fun BookingDetailScreen(
     ) { padding ->
         StateContent(vm.state, vm::load, "ไม่พบรายการ", Modifier.padding(padding)) { b ->
             Column(
-                Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row {

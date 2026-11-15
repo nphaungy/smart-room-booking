@@ -28,6 +28,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -96,6 +102,7 @@ fun ScreenScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
     snackbarHostState: SnackbarHostState? = null,
+    contentColor: Color = Brand.OnHero,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
@@ -125,9 +132,9 @@ fun ScreenScaffold(
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Transparent,
                             scrolledContainerColor = Color.Transparent,
-                            titleContentColor = Brand.OnHero,
-                            navigationIconContentColor = Brand.OnHero,
-                            actionIconContentColor = Brand.OnHero,
+                            titleContentColor = contentColor,
+                            navigationIconContentColor = contentColor,
+                            actionIconContentColor = contentColor,
                         ),
                     )
                     // a light hairline; it also keeps the bar distinct from the page in dark mode
@@ -249,7 +256,40 @@ fun SkeletonCard(modifier: Modifier = Modifier) {
     }
 }
 
-/** Renders any UiState with the three standard states and a success slot. */
+/**
+ * Pull-to-refresh around [content]. The spinner shows from the pull until [state] has left Loading
+ * (and at least a moment, for screens whose reload never shows Loading). [content] must scroll for the gesture to work.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PullRefresh(
+    state: UiState<*>,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    var pulled by remember { mutableStateOf(false) }
+    LaunchedEffect(pulled, state) {
+        if (pulled && state !is UiState.Loading) {
+            delay(500)
+            pulled = false
+        }
+    }
+    PullToRefreshBox(
+        isRefreshing = pulled,
+        onRefresh = {
+            pulled = true
+            onRefresh()
+        },
+        modifier = modifier.fillMaxSize(),
+        content = { content() },
+    )
+}
+
+/**
+ * Renders any UiState with the three standard states and a success slot.
+ * Pulling down reloads through [onRetry] (every screen that uses this gets pull-to-refresh).
+ */
 @Composable
 fun <T> StateContent(
     state: UiState<T>,
@@ -258,19 +298,27 @@ fun <T> StateContent(
     modifier: Modifier = Modifier,
     content: @Composable (T) -> Unit,
 ) {
-    // Cross-fade only when the KIND of state changes (Loading -> Success, Success -> Error ...);
-    // new data inside Success updates in place without flashing.
-    AnimatedContent(
-        targetState = state,
-        contentKey = { it::class },
-        transitionSpec = { fadeIn(tween(Motion.MEDIUM)) togetherWith fadeOut(tween(Motion.SHORT)) },
-        label = "stateContent",
-    ) { s ->
-        when (s) {
-            UiState.Loading -> LoadingView(modifier)
-            UiState.Empty -> EmptyView(emptyMessage, modifier)
-            is UiState.Error -> ErrorView(s.message, onRetry, modifier)
-            is UiState.Success -> content(s.data)
+    // `modifier` carries the caller's padding; it goes on the pull box so the spinner sits under the app bar.
+    PullRefresh(state, onRetry, modifier) {
+        // Cross-fade only when the KIND of state changes (Loading -> Success, Success -> Error ...);
+        // new data inside Success updates in place without flashing.
+        AnimatedContent(
+            targetState = state,
+            contentKey = { it::class },
+            transitionSpec = { fadeIn(tween(Motion.MEDIUM)) togetherWith fadeOut(tween(Motion.SHORT)) },
+            label = "stateContent",
+        ) { s ->
+            when (s) {
+                UiState.Loading -> LoadingView()
+                // Empty and error pages scroll (by their own height) so they can still be pulled down.
+                UiState.Empty -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                    EmptyView(emptyMessage, Modifier.verticalScroll(rememberScrollState()).height(maxHeight))
+                }
+                is UiState.Error -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                    ErrorView(s.message, onRetry, Modifier.verticalScroll(rememberScrollState()).height(maxHeight))
+                }
+                is UiState.Success -> content(s.data)
+            }
         }
     }
 }
